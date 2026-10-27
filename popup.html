@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PrivacyLens</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="app-shell">
+    <!-- Top Header -->
+    <header class="app-header">
+      <div class="brand">
+        <div class="brand-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            <path d="m9 12 2 2 4-4"/>
+          </svg>
+        </div>
+        <div>
+          <span class="brand-name">PrivacyLens</span>
+          <span class="brand-tag">Site Auditor</span>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button id="rescanBtn" class="btn-ghost" title="Re-scan this page">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Site Address Bar -->
+    <div class="site-bar">
+      <div class="site-meta">
+        <span class="security-indicator" id="protocolIcon" title="Connection security">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+          </svg>
+        </span>
+        <span class="site-domain" id="domainName">Analyzing current page...</span>
+      </div>
+      <div class="site-controls">
+        <span class="score-pill" id="miniScorePill">Score: --</span>
+        <button id="openSettingsBtn" class="btn-subtle" title="Manage site permissions in Chrome Settings">
+          Site Settings
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+            <polyline points="15 3 21 3 21 9"/>
+            <line x1="10" y1="14" x2="21" y2="3"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Notice Banner (if internal page or error) -->
+    <div id="noticeBanner" class="alert-banner hidden">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="12" y1="8" x2="12" y2="12"/>
+        <line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+      <span id="noticeText">Internal browser page.</span>
+    </div>
+
+    <!-- Modern Segmented Navigation -->
+    <nav class="segmented-nav">
+      <button class="nav-segment active" data-tab="verdict">
+        <span>Overview</span>
+      </button>
+      <button class="nav-segment" data-tab="permissions">
+        <span>Permissions</span>
+        <span class="segment-badge" id="tabPermsCount">0</span>
+      </button>
+      <button class="nav-segment" data-tab="cookies">
+        <span>Cookies</span>
+        <span class="segment-badge" id="tabCookiesCount">0</span>
+      </button>
+    </nav>
+
+    <!-- Scrollable Body -->
+    <main class="scroll-container" id="contentScroll">
+
+      <!-- TAB 1: OVERVIEW & VERDICT -->
+      <section id="tab-verdict" class="tab-panel active">
+        <!-- Hero Verdict Box -->
+        <div class="hero-verdict" id="verdictCard">
+          <div class="hero-header">
+            <div class="status-indicator-dot" id="verdictDot"></div>
+            <div class="hero-titles">
+              <h2 class="hero-status" id="verdictTitle">Auditing Page...</h2>
+              <p class="hero-caption" id="verdictSummary">Checking active permissions and cookie surveillance...</p>
+            </div>
+            <span class="status-tag" id="verdictBadge">Auditing</span>
+          </div>
+
+          <!-- Dual Key Takeaways -->
+          <div class="takeaways-grid">
+            <div class="takeaway-col safe">
+              <div class="col-heading">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                <span>Protections In Place</span>
+              </div>
+              <ul class="takeaway-list" id="safePointsList">
+                <li>Scanning security policies...</li>
+              </ul>
+            </div>
+
+            <div class="takeaway-col warning">
+              <div class="col-heading">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10"/>
+                  <line x1="12" y1="8" x2="12" y2="12"/>
+                  <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                <span>Risks & Trackers</span>
+              </div>
+              <ul class="takeaway-list" id="riskPointsList">
+                <li>Scanning telemetry & trackers...</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- Score & Metrics Strip -->
+        <div class="metrics-row">
+          <div class="metric-card score-tile">
+            <div class="score-figure" id="scoreValue">--</div>
+            <div class="metric-info">
+              <div class="metric-title" id="scoreGrade">Privacy Score</div>
+              <div class="metric-sub" id="scoreDesc">Assessing page impact</div>
+            </div>
+          </div>
+
+          <div class="metrics-grid">
+            <div class="mini-metric">
+              <span class="mini-val" id="statPermsGranted">0</span>
+              <span class="mini-label">Active Perms</span>
+            </div>
+            <div class="mini-metric">
+              <span class="mini-val" id="statCookiesTotal">0</span>
+              <span class="mini-label">Cookies</span>
+            </div>
+            <div class="mini-metric highlight-danger">
+              <span class="mini-val" id="statTrackers">0</span>
+              <span class="mini-label">Ad Trackers</span>
+            </div>
+            <div class="mini-metric highlight-warn">
+              <span class="mini-val" id="statInsecure">0</span>
+              <span class="mini-label">Insecure Flags</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Data Breach & Leak History Monitor -->
+        <div class="breach-card" id="breachCard">
+          <div class="breach-top">
+            <div class="breach-badge" id="breachBadge">
+              <span class="breach-dot" id="breachDot"></span>
+              <span id="breachStatusText">Auditing data leak history...</span>
+            </div>
+            <a id="hibpLink" class="hibp-link" href="https://haveibeenpwned.com" target="_blank" rel="noopener noreferrer" title="Check your personal email on HaveIBeenPwned">
+              Check Email ↗
+            </a>
+          </div>
+
+          <div class="breach-content" id="breachContent">
+            <h4 class="breach-headline" id="breachHeadline">Checking public breach records...</h4>
+            <p class="breach-summary" id="breachSummary">Scanning global breach databases for incidents linked to this domain.</p>
+            <div class="breach-chips" id="breachChips"></div>
+          </div>
+
+          <!-- Real-Time Leak Transmission Checks -->
+          <div class="live-leak-checks">
+            <div class="leak-stat">
+              <span class="leak-icon safe" id="formLeakIcon">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              </span>
+              <span class="leak-label">Form Submissions:</span>
+              <span class="leak-val" id="formLeakVal">HTTPS Encrypted</span>
+            </div>
+            <div class="leak-stat">
+              <span class="leak-icon info" id="exfilLeakIcon">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              </span>
+              <span class="leak-label">External Receivers:</span>
+              <span class="leak-val" id="exfilLeakVal">0 Trackers</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Plain-English Privacy Guide -->
+        <div class="guide-section">
+          <h3 class="section-title">What this means for your data</h3>
+          
+          <div class="guide-card">
+            <div class="guide-title">
+              <span class="guide-bullet bullet-red"></span>
+              <span>Advertising & Profiling Trackers</span>
+            </div>
+            <p class="guide-text">
+              Trackers follow you across different websites to assemble a behavioral history (shopping intent, political interests, medical topics) to target ads. You can clear them in the Cookies tab anytime.
+            </p>
+          </div>
+
+          <div class="guide-card">
+            <div class="guide-title">
+              <span class="guide-bullet bullet-amber"></span>
+              <span>Hardware & Sensor Permissions</span>
+            </div>
+            <p class="guide-text">
+              Webcam, microphone, and location access expose real-time physical telemetry. Keep these set to "Ask each time" or "Blocked" unless actively participating in a video call.
+            </p>
+          </div>
+
+          <div class="guide-card">
+            <div class="guide-title">
+              <span class="guide-bullet bullet-blue"></span>
+              <span>Cookie Security (HttpOnly & HTTPS)</span>
+            </div>
+            <p class="guide-text">
+              Safe authentication cookies use the <code>HttpOnly</code> flag to prevent theft by malicious web scripts, and the <code>Secure</code> flag to prevent interception on open Wi-Fi.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 2: PERMISSIONS -->
+      <section id="tab-permissions" class="tab-panel">
+        <div class="panel-header">
+          <div class="filter-pills">
+            <button class="pill-option active" data-filter="all">All</button>
+            <button class="pill-option" data-filter="granted">Allowed</button>
+            <button class="pill-option" data-filter="prompt">Asks First</button>
+            <button class="pill-option" data-filter="denied">Blocked</button>
+          </div>
+          <span class="panel-counter" id="permsSummaryText">Scanning hardware & browser permissions...</span>
+        </div>
+
+        <div id="permissionsList" class="items-list">
+          <div class="loading-state">
+            <div class="spinner"></div>
+            <p>Scanning browser permissions...</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 3: COOKIES -->
+      <section id="tab-cookies" class="tab-panel">
+        <div class="cookie-toolbar">
+          <div class="search-field">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"/>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input type="text" id="cookieSearchInput" placeholder="Filter cookies by name or domain...">
+          </div>
+          <button id="clearCookiesBtn" class="btn-danger-outline" title="Wipe cookies set by this website">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="3 6 5 6 21 6"/>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+            </svg>
+            Clear Cookies
+          </button>
+        </div>
+
+        <!-- Categories bar -->
+        <div class="categories-scroller">
+          <button class="cat-pill active" data-cookie-cat="all">All (<span id="catCountAll">0</span>)</button>
+          <button class="cat-pill" data-cookie-cat="tracking">Advertising (<span id="catCountTrack">0</span>)</button>
+          <button class="cat-pill" data-cookie-cat="analytics">Analytics (<span id="catCountAnalytics">0</span>)</button>
+          <button class="cat-pill" data-cookie-cat="auth">Session / Auth (<span id="catCountAuth">0</span>)</button>
+          <button class="cat-pill" data-cookie-cat="functional">Preferences (<span id="catCountFunc">0</span>)</button>
+          <button class="cat-pill" data-cookie-cat="other">Other (<span id="catCountOther">0</span>)</button>
+        </div>
+
+        <div id="cookiesList" class="items-list">
+          <div class="loading-state">
+            <div class="spinner"></div>
+            <p>Analyzing stored cookies...</p>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Footer Bar -->
+    <footer class="app-footer">
+      <span class="footer-note" id="footerScanTime">Just scanned</span>
+      <button id="exportBtn" class="btn-link" title="Export audit data as JSON">
+        Export JSON Report
+      </button>
+    </footer>
+  </div>
+
+  <script src="breaches.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
