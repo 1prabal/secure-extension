@@ -111,15 +111,63 @@ const PERMISSIONS_CATALOG = [
   }
 ];
 
+// Plain-English Tracker Definitions & Analogies
+const TRACKER_EXPLAINERS = {
+  all: {
+    title: 'All Network Trackers & Requests',
+    analogy: 'Complete Telemetry View',
+    text: 'Every network connection initiated to external servers while browsing this website. Select any category pill below to inspect individual tracker types.'
+  },
+  advertising: {
+    title: 'Advertising Networks (Ad Trackers)',
+    analogy: 'Digital Billboard That Follows You',
+    text: 'Tracks articles you read, your search habits, and shopping interests across websites to build an advertising profile for commercial ad bidding.'
+  },
+  analytics: {
+    title: 'Analytics & Audience Measurement',
+    analogy: 'In-Store Foot Traffic Camera',
+    text: 'Records mouse movements, clicks, scroll depth, and minutes spent on pages to measure website performance and detect user confusion.'
+  },
+  social: {
+    title: 'Social Media Tracking Pixels',
+    analogy: 'Personal ID Card Scanner',
+    text: 'Connects your off-site web visits and shopping carts directly back to your logged-in Facebook, Instagram, or TikTok profile for hyper-targeted social ads.'
+  },
+  retargeting: {
+    title: 'Retargeting & Conversion Trackers',
+    analogy: 'Persistent Salesperson',
+    text: 'Remembers the specific product names, prices, and colors you looked at so advertisers can follow you with ads urging you to finish the purchase.'
+  },
+  fingerprinting: {
+    title: 'Device Fingerprinting Scripts',
+    analogy: 'Digital Fingerprint Scanner',
+    text: 'Probes your graphics card (GPU), screen resolution, audio hardware, and canvas math to build a unique device hash that recognizes you even in Incognito mode.'
+  },
+  pixel: {
+    title: 'Tracking Beacons & 1x1 Pixels',
+    analogy: 'Invisible Delivery Receipt',
+    text: 'Invisible 1x1 transparent image beacons that send an instant secret ping confirming you opened the page or email, transmitting your IP and visit time.'
+  },
+  unclassified: {
+    title: 'Unclassified Third-Party Requests',
+    analogy: 'Unverified External Helper',
+    text: 'External connections not matched in public ad databases. Often helper scripts, customer chat, or telemetry. Audited for transparency without labeling malicious.'
+  }
+};
+
 // App State
 let currentTab = null;
 let currentUrl = '';
 let currentOrigin = '';
 let permissionsData = {};
 let cookiesData = [];
+let capturedTrackers = [];
+let inPageProbes = [];
 let activePermFilter = 'all';
 let activeCookieCat = 'all';
+let activeTrackerCat = 'all';
 let cookieSearchQuery = '';
+let trackerSearchQuery = '';
 
 async function initApp() {
   setupEventListeners();
@@ -157,22 +205,82 @@ function setupEventListeners() {
     });
   });
 
-  // Cookie category filters
-  document.querySelectorAll('.cat-pill').forEach(pill => {
+  // Cookie category filters (explicitly targeting data-cookie-cat)
+  document.querySelectorAll('.cat-pill[data-cookie-cat]').forEach(pill => {
     pill.addEventListener('click', (e) => {
-      document.querySelectorAll('.cat-pill').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.cat-pill[data-cookie-cat]').forEach(p => p.classList.remove('active'));
       e.currentTarget.classList.add('active');
       activeCookieCat = e.currentTarget.getAttribute('data-cookie-cat');
       renderCookies();
     });
   });
 
+  // Tracker category filters (explicitly targeting data-tracker-cat)
+  document.querySelectorAll('.cat-pill[data-tracker-cat]').forEach(pill => {
+    pill.addEventListener('click', (e) => {
+      document.querySelectorAll('.cat-pill[data-tracker-cat]').forEach(p => p.classList.remove('active'));
+      e.currentTarget.classList.add('active');
+      activeTrackerCat = e.currentTarget.getAttribute('data-tracker-cat');
+      renderTrackers();
+    });
+  });
+
+  // Jump from Overview matrix to Trackers tab with category filter
+  document.querySelectorAll('.matrix-item[data-jump-cat]').forEach(item => {
+    item.addEventListener('click', (e) => {
+      const cat = e.currentTarget.getAttribute('data-jump-cat');
+      switchTab('trackers');
+      const targetPill = document.querySelector(`.cat-pill[data-tracker-cat="${cat}"]`);
+      if (targetPill) {
+        document.querySelectorAll('.cat-pill[data-tracker-cat]').forEach(p => p.classList.remove('active'));
+        targetPill.classList.add('active');
+        activeTrackerCat = cat;
+        renderTrackers();
+      }
+    });
+  });
+
   // Cookie search input
   const searchInput = document.getElementById('cookieSearchInput');
-  searchInput.addEventListener('input', (e) => {
-    cookieSearchQuery = e.target.value.trim().toLowerCase();
-    renderCookies();
-  });
+  if (searchInput) {
+    searchInput.addEventListener('input', (e) => {
+      cookieSearchQuery = e.target.value.trim().toLowerCase();
+      renderCookies();
+    });
+  }
+
+  // Tracker search input
+  const trackerSearchInput = document.getElementById('trackerSearchInput');
+  if (trackerSearchInput) {
+    trackerSearchInput.addEventListener('input', (e) => {
+      trackerSearchQuery = e.target.value.trim().toLowerCase();
+      renderTrackers();
+    });
+  }
+
+  // Refresh Trackers button
+  const refreshTrackersBtn = document.getElementById('refreshTrackersBtn');
+  if (refreshTrackersBtn) {
+    refreshTrackersBtn.addEventListener('click', async () => {
+      if (currentTab) {
+        await scanTrackers(currentTab);
+      }
+    });
+  }
+
+  // View Guide shortcut button
+  const viewGuideBtn = document.getElementById('viewGuideBtn');
+  if (viewGuideBtn) {
+    viewGuideBtn.addEventListener('click', () => {
+      switchTab('verdict');
+      setTimeout(() => {
+        const guideEl = document.querySelector('.guide-section');
+        if (guideEl) {
+          guideEl.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, 50);
+    });
+  }
 
   // Clear Cookies button
   document.getElementById('clearCookiesBtn').addEventListener('click', handleClearCookies);
@@ -232,7 +340,8 @@ async function scanCurrentWebsite() {
     // Run parallel audits
     await Promise.all([
       scanPermissions(tab),
-      scanCookies(tab)
+      scanCookies(tab),
+      scanTrackers(tab)
     ]);
 
     // Audit historical breaches & live data leak status
@@ -312,9 +421,9 @@ function renderPermissions() {
     return state === activePermFilter;
   });
 
-  tabPermsCount.textContent = grantedCount;
-  statPermsGranted.textContent = grantedCount;
-  permsSummaryText.textContent = `${grantedCount} allowed · ${promptCount} asks first · ${deniedCount} blocked`;
+  if (tabPermsCount) tabPermsCount.textContent = grantedCount;
+  if (statPermsGranted) statPermsGranted.textContent = grantedCount;
+  if (permsSummaryText) permsSummaryText.textContent = `${grantedCount} allowed · ${promptCount} asks first · ${deniedCount} blocked`;
 
   if (itemsToRender.length === 0) {
     listEl.innerHTML = `
@@ -458,8 +567,6 @@ function renderCookies() {
   const listEl = document.getElementById('cookiesList');
   const tabCookiesCount = document.getElementById('tabCookiesCount');
   const statCookiesTotal = document.getElementById('statCookiesTotal');
-  const statTrackers = document.getElementById('statTrackers');
-  const statInsecure = document.getElementById('statInsecure');
 
   let countTrack = 0;
   let countAnalytics = 0;
@@ -480,17 +587,20 @@ function renderCookies() {
     }
   });
 
-  tabCookiesCount.textContent = cookiesData.length;
-  statCookiesTotal.textContent = cookiesData.length;
-  statTrackers.textContent = countTrack;
-  statInsecure.textContent = countInsecure;
+  if (tabCookiesCount) tabCookiesCount.textContent = cookiesData.length;
+  if (statCookiesTotal) statCookiesTotal.textContent = cookiesData.length;
 
-  document.getElementById('catCountAll').textContent = cookiesData.length;
-  document.getElementById('catCountTrack').textContent = countTrack;
-  document.getElementById('catCountAnalytics').textContent = countAnalytics;
-  document.getElementById('catCountAuth').textContent = countAuth;
-  document.getElementById('catCountFunc').textContent = countFunc;
-  document.getElementById('catCountOther').textContent = countOther;
+  const setSafeText = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = val;
+  };
+
+  setSafeText('catCountAll', cookiesData.length);
+  setSafeText('catCountTrack', countTrack);
+  setSafeText('catCountAnalytics', countAnalytics);
+  setSafeText('catCountAuth', countAuth);
+  setSafeText('catCountFunc', countFunc);
+  setSafeText('catCountOther', countOther);
 
   const filtered = cookiesData.filter(cookie => {
     if (activeCookieCat !== 'all' && cookie.category !== activeCookieCat) {
@@ -545,7 +655,411 @@ function renderCookies() {
 }
 
 /**
- * Calculate Overall Privacy Score (0-100)
+ * Escapes HTML characters for safe rendering
+ */
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/**
+ * Audits network requests, advertising trackers, analytics, social pixels,
+ * retargeting beacons, and in-page fingerprinting probes.
+ */
+async function scanTrackers(tab) {
+  const trackersListEl = document.getElementById('trackersList');
+  if (!tab || !tab.url) return;
+
+  const urlObj = new URL(tab.url);
+  const siteHost = urlObj.hostname;
+
+  try {
+    // 1. Fetch background-captured web requests
+    let bgRequests = [];
+    try {
+      const bgResp = await new Promise(resolve => {
+        chrome.runtime.sendMessage({ action: 'getTabRequests', tabId: tab.id }, (res) => {
+          if (chrome.runtime.lastError) {
+            resolve({ requests: [] });
+          } else {
+            resolve(res || { requests: [] });
+          }
+        });
+      });
+      bgRequests = (bgResp && bgResp.requests) ? bgResp.requests : [];
+    } catch (e) {
+      console.warn('Background request retrieval:', e);
+    }
+
+    // 2. Fetch in-page resource timing entries & in-page fingerprint/DOM probes
+    let inPageResources = [];
+    let pageProbes = [];
+    try {
+      const probeRes = await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: () => {
+          const res = (performance.getEntriesByType('resource') || []).map(r => ({
+            url: r.name,
+            type: r.initiatorType || 'other',
+            initiator: window.location.href,
+            timestamp: Date.now()
+          }));
+
+          // In-page probes (DOM pixels and fingerprinting libs)
+          const detectedProbes = [];
+          
+          // Audit 1x1 or hidden DOM beacons
+          try {
+            const els = Array.from(document.querySelectorAll('img, iframe'));
+            els.forEach(el => {
+              const isTiny = (el.width <= 1 && el.height <= 1) || (el.naturalWidth <= 1 && el.naturalHeight <= 1);
+              const isHidden = el.style.display === 'none' || el.style.visibility === 'hidden' || el.hidden;
+              const src = el.src || '';
+              if ((isTiny || isHidden) && src.startsWith('http')) {
+                const u = new URL(src);
+                if (u.hostname !== window.location.hostname) {
+                  detectedProbes.push({
+                    type: 'dom_pixel',
+                    category: 'pixel',
+                    serviceName: 'DOM 1x1 Tracking Pixel',
+                    domain: u.hostname,
+                    url: src,
+                    evidence: `Invisible ${el.tagName.toLowerCase()} beacon (${el.width || 1}x${el.height || 1}px) pinging third-party domain.`
+                  });
+                }
+              }
+            });
+          } catch(e) {}
+
+          // Audit window fingerprinting objects
+          try {
+            if (window.Fingerprint2 || window.FingerprintJS || window.ClientJS) {
+              detectedProbes.push({
+                type: 'fingerprinting_lib',
+                category: 'fingerprinting',
+                serviceName: 'Client-Side Fingerprinting Library',
+                domain: window.location.hostname,
+                url: window.location.href,
+                evidence: 'Active client-side fingerprinting library (FingerprintJS / ClientJS) loaded in page global context.'
+              });
+            }
+          } catch(e) {}
+
+          return { resources: res, probes: detectedProbes };
+        }
+      });
+
+      if (probeRes && probeRes[0] && probeRes[0].result) {
+        inPageResources = probeRes[0].result.resources || [];
+        pageProbes = probeRes[0].result.probes || [];
+      }
+    } catch (e) {
+      console.warn('In-page resource audit:', e.message);
+    }
+
+    inPageProbes = pageProbes;
+
+    // 3. Merge and deduplicate requests by URL
+    const seenUrls = new Set();
+    const rawRequests = [];
+
+    for (const r of bgRequests) {
+      if (r.url && !seenUrls.has(r.url)) {
+        seenUrls.add(r.url);
+        rawRequests.push(r);
+      }
+    }
+
+    for (const r of inPageResources) {
+      if (r.url && !seenUrls.has(r.url)) {
+        seenUrls.add(r.url);
+        rawRequests.push(r);
+      }
+    }
+
+    // 4. Classify each network request using trackers.js engine
+    const analyzed = [];
+    for (const req of rawRequests) {
+      const result = typeof analyzeNetworkRequest === 'function' ? analyzeNetworkRequest(req, siteHost) : null;
+      if (result) {
+        analyzed.push(result);
+      }
+    }
+
+    // 5. Merge in-page probes if not already covered
+    for (const p of pageProbes) {
+      const alreadyPresent = analyzed.some(a => a.url === p.url || (a.category === p.category && a.serviceName === p.serviceName));
+      if (!alreadyPresent) {
+        const catInfo = (typeof TRACKER_CATEGORIES !== 'undefined' && TRACKER_CATEGORIES[p.category.toUpperCase()]) || {
+          label: p.category,
+          color: '#d97706',
+          bgColor: '#fffbeb',
+          borderColor: '#fde68a'
+        };
+        analyzed.unshift({
+          url: p.url,
+          domain: p.domain,
+          rootDomain: p.domain,
+          isThirdParty: true,
+          category: p.category,
+          categoryLabel: catInfo.label || p.category,
+          categoryColor: catInfo.color,
+          categoryBg: catInfo.bgColor,
+          categoryBorder: catInfo.borderColor,
+          serviceName: p.serviceName,
+          initiator: siteHost,
+          type: p.type || 'probe',
+          evidence: p.evidence,
+          isPixel: p.category === 'pixel',
+          isFingerprinter: p.category === 'fingerprinting',
+          timestamp: Date.now()
+        });
+      }
+    }
+
+    capturedTrackers = analyzed;
+
+    // 6. Update counts and UI
+    updateTrackerStats(siteHost);
+    renderTrackers();
+
+  } catch (err) {
+    console.error('Error scanning trackers:', err);
+    if (trackersListEl) {
+      trackersListEl.innerHTML = `
+        <div class="empty-state">
+          <p>Unable to analyze network requests: ${err.message}</p>
+        </div>
+      `;
+    }
+  }
+}
+
+/**
+ * Updates tracker counts, matrix breakdown, and tab badges
+ */
+function updateTrackerStats(siteHost) {
+  const counts = {
+    all: capturedTrackers.length,
+    advertising: 0,
+    analytics: 0,
+    social: 0,
+    retargeting: 0,
+    fingerprinting: 0,
+    pixel: 0,
+    unclassified: 0
+  };
+
+  const thirdPartyHosts = new Set();
+
+  capturedTrackers.forEach(t => {
+    if (counts[t.category] !== undefined) {
+      counts[t.category]++;
+    }
+    if (t.isThirdParty && t.domain) {
+      thirdPartyHosts.add(t.domain);
+    }
+  });
+
+  // Overview Strip Metrics
+  const statTrackersTotal = document.getElementById('statTrackersTotal');
+  const statThirdParties = document.getElementById('statThirdParties');
+  if (statTrackersTotal) statTrackersTotal.textContent = counts.all;
+  if (statThirdParties) statThirdParties.textContent = thirdPartyHosts.size;
+
+  // Overview Matrix Counts
+  const setElText = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = val;
+  };
+
+  setElText('matrixCountAds', counts.advertising);
+  setElText('matrixCountAnalytics', counts.analytics);
+  setElText('matrixCountSocial', counts.social);
+  setElText('matrixCountRetarget', counts.retargeting);
+  setElText('matrixCountFp', counts.fingerprinting);
+  setElText('matrixCountPixel', counts.pixel);
+  setElText('matrixCountUnclassified', counts.unclassified);
+
+  const matrixTotalLabel = document.getElementById('matrixTotalLabel');
+  if (matrixTotalLabel) {
+    matrixTotalLabel.textContent = `${counts.all} Detected`;
+    if (counts.all === 0) {
+      matrixTotalLabel.classList.add('clean');
+    } else {
+      matrixTotalLabel.classList.remove('clean');
+    }
+  }
+
+  // Highlight matrix tiles that have counts
+  document.querySelectorAll('.matrix-item').forEach(item => {
+    const cat = item.getAttribute('data-jump-cat');
+    if (cat && counts[cat] > 0) {
+      item.classList.add('has-count');
+    } else {
+      item.classList.remove('has-count');
+    }
+  });
+
+  // Tab 2 Badge Count
+  setElText('tabTrackersBadge', counts.all);
+  setElText('tabTrackersCount', counts.all);
+
+  // Category Filter Pill Counters
+  setElText('catTrackAll', counts.all);
+  setElText('catTrackAds', counts.advertising);
+  setElText('catTrackAnalytics', counts.analytics);
+  setElText('catTrackSocial', counts.social);
+  setElText('catTrackRetarget', counts.retargeting);
+  setElText('catTrackFp', counts.fingerprinting);
+  setElText('catTrackPixel', counts.pixel);
+  setElText('catTrackUnclassified', counts.unclassified);
+
+  // Summary strip
+  const trackerCountSummary = document.getElementById('trackerCountSummary');
+  if (trackerCountSummary) {
+    trackerCountSummary.textContent = `${counts.all} tracked requests identified`;
+  }
+  const thirdPartyRatio = document.getElementById('thirdPartyRatio');
+  if (thirdPartyRatio) {
+    thirdPartyRatio.textContent = `${thirdPartyHosts.size} 3rd-Party Hosts`;
+  }
+}
+
+/**
+ * Renders the filtered list of trackers in the Trackers Tab
+ */
+function renderTrackers() {
+  const listEl = document.getElementById('trackersList');
+  const alertBox = document.getElementById('fingerprintAlertBox');
+  const alertList = document.getElementById('fingerprintAlertList');
+
+  if (!listEl) return;
+
+  // Update Contextual Plain-English Explainer
+  const explainer = TRACKER_EXPLAINERS[activeTrackerCat] || TRACKER_EXPLAINERS.all;
+  const explainerTitle = document.getElementById('explainerTitle');
+  const explainerAnalogy = document.getElementById('explainerAnalogy');
+  const explainerDesc = document.getElementById('explainerDesc');
+  if (explainerTitle) explainerTitle.textContent = explainer.title;
+  if (explainerAnalogy) explainerAnalogy.textContent = explainer.analogy;
+  if (explainerDesc) explainerDesc.textContent = explainer.text;
+
+  // In-page fingerprint / DOM beacon alert box
+  if (alertBox && alertList) {
+    if (inPageProbes.length > 0) {
+      alertBox.classList.remove('hidden');
+      alertList.innerHTML = inPageProbes.map(p => `
+        <li><strong>${escapeHtml(p.serviceName)}:</strong> ${escapeHtml(p.evidence)}</li>
+      `).join('');
+    } else {
+      alertBox.classList.add('hidden');
+      alertList.innerHTML = '';
+    }
+  }
+
+  // Filter trackers
+  const filtered = capturedTrackers.filter(t => {
+    if (activeTrackerCat !== 'all' && t.category !== activeTrackerCat) {
+      return false;
+    }
+    if (trackerSearchQuery) {
+      const q = trackerSearchQuery;
+      const matchName = t.serviceName && t.serviceName.toLowerCase().includes(q);
+      const matchDomain = t.domain && t.domain.toLowerCase().includes(q);
+      const matchUrl = t.url && t.url.toLowerCase().includes(q);
+      const matchEvidence = t.evidence && t.evidence.toLowerCase().includes(q);
+      const matchCategory = t.category && t.category.toLowerCase().includes(q);
+      if (!matchName && !matchDomain && !matchUrl && !matchEvidence && !matchCategory) {
+        return false;
+      }
+    }
+    return true;
+  });
+
+  const trackerCountSummary = document.getElementById('trackerCountSummary');
+  if (trackerCountSummary) {
+    trackerCountSummary.textContent = `Showing ${filtered.length} of ${capturedTrackers.length} requests`;
+  }
+
+  if (filtered.length === 0) {
+    listEl.innerHTML = `
+      <div class="empty-state">
+        <p>${capturedTrackers.length === 0 ? 'No third-party trackers or telemetry requests detected on this page.' : 'No requests matching your active filter or search.'}</p>
+      </div>
+    `;
+    return;
+  }
+
+  listEl.innerHTML = filtered.map((t) => {
+    const is3rd = t.isThirdParty;
+    const cleanUrl = escapeHtml(t.url || '');
+    const shortUrl = cleanUrl.length > 70 ? cleanUrl.substring(0, 67) + '...' : cleanUrl;
+    const typeLabel = escapeHtml((t.type || 'request').toUpperCase());
+    const partyLabel = is3rd ? '3rd-Party' : '1st-Party';
+    const partyClass = is3rd ? 'third-party' : 'first-party';
+    const catClass = escapeHtml(t.category || 'unclassified');
+    const catLabel = escapeHtml(t.categoryLabel || t.category || 'Tracker');
+
+    return `
+      <div class="tracker-item">
+        <div class="tracker-item-top">
+          <div class="tracker-service-title">
+            <strong>${escapeHtml(t.serviceName || t.domain)}</strong>
+          </div>
+          <div class="tracker-badges">
+            <span class="category-tag ${catClass}">${catLabel}</span>
+            <span class="type-pill">${typeLabel}</span>
+            <span class="party-badge ${partyClass}">${partyLabel}</span>
+          </div>
+        </div>
+
+        <div class="tracker-url-row">
+          <span class="tracker-url-text" title="${cleanUrl}">${shortUrl}</span>
+          <button class="btn-copy-url" data-url="${cleanUrl}" title="Copy full request URL">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+            </svg>
+          </button>
+        </div>
+
+        <div class="tracker-evidence">
+          <strong>Indicator:</strong> ${escapeHtml(t.evidence || 'Observed cross-origin request')}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  // Wire copy buttons
+  listEl.querySelectorAll('.btn-copy-url').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const targetUrl = btn.getAttribute('data-url');
+      if (targetUrl) {
+        navigator.clipboard.writeText(targetUrl).then(() => {
+          btn.innerHTML = '<span style="font-size: 9px; font-weight: 700; color: #059669;">Copied!</span>';
+          setTimeout(() => {
+            btn.innerHTML = `
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+              </svg>
+            `;
+          }, 1500);
+        });
+      }
+    });
+  });
+}
+
+/**
+ * Calculate Overall Privacy Score (0-100) factoring in trackers, cookies & permissions
  */
 function computePrivacyScore() {
   const scoreValueEl = document.getElementById('scoreValue');
@@ -555,20 +1069,37 @@ function computePrivacyScore() {
 
   let score = 100;
 
+  // 1. Deductions for Permissions
   if (permissionsData['camera'] === 'granted') score -= 25;
   if (permissionsData['microphone'] === 'granted') score -= 25;
   if (permissionsData['geolocation'] === 'granted') score -= 20;
   if (permissionsData['clipboard-read'] === 'granted') score -= 15;
   if (permissionsData['notifications'] === 'granted') score -= 5;
 
+  // 2. Deductions for Active Network Trackers
+  const adTrackersCount = capturedTrackers.filter(t => t.category === 'advertising').length;
+  const retargetCount = capturedTrackers.filter(t => t.category === 'retargeting').length;
+  const fpCount = capturedTrackers.filter(t => t.category === 'fingerprinting').length;
+  const socialCount = capturedTrackers.filter(t => t.category === 'social').length;
+  const pixelCount = capturedTrackers.filter(t => t.category === 'pixel').length;
+  const unclassifiedCount = capturedTrackers.filter(t => t.category === 'unclassified').length;
+
+  score -= Math.min(25, adTrackersCount * 3);
+  score -= Math.min(20, retargetCount * 3);
+  score -= Math.min(25, fpCount * 12);
+  score -= Math.min(15, socialCount * 2);
+  score -= Math.min(10, pixelCount * 1);
+  score -= Math.min(10, Math.floor(unclassifiedCount * 0.5));
+
+  // 3. Deductions for Cookies
   const trackingCount = cookiesData.filter(c => c.category === 'tracking').length;
-  score -= Math.min(25, trackingCount * 3);
+  score -= Math.min(20, trackingCount * 2);
 
   const insecureCount = cookiesData.filter(c => !c.secure || (!c.httpOnly && c.category === 'auth')).length;
-  score -= Math.min(20, insecureCount * 4);
+  score -= Math.min(15, insecureCount * 3);
 
-  if (cookiesData.length > 30) score -= 10;
-  else if (cookiesData.length > 15) score -= 5;
+  if (cookiesData.length > 30) score -= 8;
+  else if (cookiesData.length > 15) score -= 4;
 
   score = Math.max(10, Math.min(100, score));
 
@@ -577,18 +1108,18 @@ function computePrivacyScore() {
 
   if (score >= 85) {
     scoreGradeEl.textContent = 'High Privacy Rating';
-    scoreDescEl.textContent = 'No invasive permissions or tracking detected.';
+    scoreDescEl.textContent = 'Minimal tracking and zero intrusive permissions.';
   } else if (score >= 70) {
     scoreGradeEl.textContent = 'Standard Web Activity';
     scoreDescEl.textContent = 'Standard analytics telemetry. Permissions gated.';
   } else if (score >= 50) {
     scoreValueEl.classList.add('warn');
-    scoreGradeEl.textContent = 'Noticeable Tracking';
-    scoreDescEl.textContent = 'Third-party tracking cookies detected.';
+    scoreGradeEl.textContent = 'Moderate Tracking';
+    scoreDescEl.textContent = 'Ad networks or retargeting trackers detected.';
   } else {
     scoreValueEl.classList.add('danger');
-    scoreGradeEl.textContent = 'Low Privacy Rating';
-    scoreDescEl.textContent = 'Sensitive permissions active or aggressive trackers.';
+    scoreGradeEl.textContent = 'Aggressive Tracking';
+    scoreDescEl.textContent = 'Invasive trackers or sensitive hardware permissions.';
   }
 
   // Update mini score pill in domain bar
@@ -649,14 +1180,40 @@ function updateSafetyVerdict(score) {
     riskPoints.push('Desktop Notifications allowed: site can trigger popups');
   }
 
+  // Tracker Analysis in Verdict
+  const adTrackers = capturedTrackers.filter(t => t.category === 'advertising');
+  const retargetTrackers = capturedTrackers.filter(t => t.category === 'retargeting');
+  const fpTrackers = capturedTrackers.filter(t => t.category === 'fingerprinting');
+  const socialTrackers = capturedTrackers.filter(t => t.category === 'social');
+  const pixelTrackers = capturedTrackers.filter(t => t.category === 'pixel');
+
+  if (adTrackers.length > 0) {
+    riskPoints.push(`${adTrackers.length} Advertising Network(s) tracking browsing behavior`);
+  }
+  if (retargetTrackers.length > 0) {
+    riskPoints.push(`${retargetTrackers.length} Retargeting Tracker(s) profiling purchase intent`);
+  }
+  if (fpTrackers.length > 0) {
+    riskPoints.push(`Device Fingerprinting: scripts probing canvas, audio, or GPU`);
+  }
+  if (socialTrackers.length > 0) {
+    riskPoints.push(`${socialTrackers.length} Social Media Pixel(s) linking site visit to social profile`);
+  }
+  if (pixelTrackers.length > 0) {
+    riskPoints.push(`${pixelTrackers.length} Tracking Beacon(s) transmitting interaction metrics`);
+  }
+
+  if (capturedTrackers.length === 0) {
+    safePoints.push('No third-party advertising or fingerprinting trackers detected');
+  }
+
+  // Cookie Analysis
   const trackingCookies = cookiesData.filter(c => c.category === 'tracking');
   const insecureCookies = cookiesData.filter(c => !c.secure || (!c.httpOnly && c.category === 'auth'));
   const zombieCookies = cookiesData.filter(c => c.isLongLived);
 
-  if (trackingCookies.length === 0) {
-    safePoints.push('No third-party advertising trackers detected');
-  } else {
-    riskPoints.push(`${trackingCookies.length} advertising tracker(s) profiling page activity`);
+  if (trackingCookies.length === 0 && adTrackers.length === 0) {
+    safePoints.push('Zero persistent advertising cookies found');
   }
 
   if (insecureCookies.length === 0) {
@@ -685,31 +1242,31 @@ function updateSafetyVerdict(score) {
   verdictCard.className = 'hero-verdict';
   verdictBadge.className = 'status-tag';
 
-  const isDangerous = hasCamera || hasMic || hasLocation || hasClipboard || riskPoints.length >= 4 || score < 55;
-  const isModerate = !isDangerous && (trackingCookies.length > 0 || hasNotifications || riskPoints.length > 0 || score < 80);
+  const isDangerous = hasCamera || hasMic || hasLocation || hasClipboard || fpTrackers.length > 0 || riskPoints.length >= 4 || score < 55;
+  const isModerate = !isDangerous && (adTrackers.length > 0 || retargetTrackers.length > 0 || socialTrackers.length > 0 || trackingCookies.length > 0 || hasNotifications || riskPoints.length > 0 || score < 80);
 
   if (!isDangerous && !isModerate) {
     verdictCard.classList.add('state-safe');
     verdictTitle.textContent = 'Clean & Safe to Browse';
     verdictBadge.textContent = 'Safe';
     verdictBadge.classList.add('safe');
-    verdictSummary.textContent = 'This website does not request sensitive device permissions or use third-party tracking cookies.';
+    verdictSummary.textContent = 'This website does not request sensitive device permissions or load third-party advertising trackers.';
   } else if (isModerate) {
     verdictCard.classList.add('state-caution');
-    verdictTitle.textContent = 'Advertising Trackers Present';
+    verdictTitle.textContent = 'Advertising Trackers Active';
     verdictBadge.textContent = 'Moderate';
     verdictBadge.classList.add('caution');
-    verdictSummary.textContent = 'This site monitors browsing habits with ad cookies, but has no access to your camera, mic, or location.';
+    verdictSummary.textContent = 'This site loads advertising and marketing trackers, but has no access to your camera, mic, or location.';
   } else {
     verdictCard.classList.add('state-harmful');
-    verdictTitle.textContent = 'Sensitive Access Active';
+    verdictTitle.textContent = 'High Privacy Exposure';
     verdictBadge.textContent = 'High Risk';
     verdictBadge.classList.add('harmful');
-    verdictSummary.textContent = 'This website has active hardware permissions or uses aggressive tracking that exposes personal data.';
+    verdictSummary.textContent = 'This website employs device fingerprinting, aggressive cross-site tracking, or has active hardware permissions.';
   }
 
   safePointsList.innerHTML = safePoints.slice(0, 3).map(p => `<li>${p}</li>`).join('') || '<li>Standard browser sandbox active.</li>';
-  riskPointsList.innerHTML = riskPoints.slice(0, 3).map(p => `<li>${p}</li>`).join('') || '<li>No immediate privacy concerns found.</li>';
+  riskPointsList.innerHTML = riskPoints.slice(0, 4).map(p => `<li>${p}</li>`).join('') || '<li>No immediate privacy concerns found.</li>';
 }
 
 /**
@@ -863,6 +1420,27 @@ function handleExportReport() {
     privacyScore: parseInt(document.getElementById('scoreValue').textContent, 10),
     activePermissions: Object.entries(permissionsData).filter(([_, state]) => state === 'granted').map(([name]) => name),
     allPermissions: permissionsData,
+    trackersSummary: {
+      total: capturedTrackers.length,
+      advertising: capturedTrackers.filter(t => t.category === 'advertising').length,
+      analytics: capturedTrackers.filter(t => t.category === 'analytics').length,
+      social: capturedTrackers.filter(t => t.category === 'social').length,
+      retargeting: capturedTrackers.filter(t => t.category === 'retargeting').length,
+      fingerprinting: capturedTrackers.filter(t => t.category === 'fingerprinting').length,
+      pixel: capturedTrackers.filter(t => t.category === 'pixel').length,
+      unclassified: capturedTrackers.filter(t => t.category === 'unclassified').length
+    },
+    inPageProbes: inPageProbes,
+    trackers: capturedTrackers.map(t => ({
+      serviceName: t.serviceName,
+      category: t.category,
+      categoryLabel: t.categoryLabel,
+      domain: t.domain,
+      isThirdParty: t.isThirdParty,
+      type: t.type,
+      evidence: t.evidence,
+      url: t.url
+    })),
     cookiesSummary: {
       total: cookiesData.length,
       tracking: cookiesData.filter(c => c.category === 'tracking').length,
@@ -897,12 +1475,41 @@ function renderRestrictedState() {
   document.getElementById('scoreValue').textContent = '--';
   document.getElementById('scoreGrade').textContent = 'System Page';
   document.getElementById('scoreDesc').textContent = 'Open any public website to perform an audit.';
-  document.getElementById('statPermsGranted').textContent = '0';
-  document.getElementById('statCookiesTotal').textContent = '0';
-  document.getElementById('statTrackers').textContent = '0';
-  document.getElementById('statInsecure').textContent = '0';
+  
+  const statPermsGranted = document.getElementById('statPermsGranted');
+  if (statPermsGranted) statPermsGranted.textContent = '0';
+  const statCookiesTotal = document.getElementById('statCookiesTotal');
+  if (statCookiesTotal) statCookiesTotal.textContent = '0';
+  const statTrackersTotal = document.getElementById('statTrackersTotal');
+  if (statTrackersTotal) statTrackersTotal.textContent = '0';
+  const statThirdParties = document.getElementById('statThirdParties');
+  if (statThirdParties) statThirdParties.textContent = '0';
+
+  const resetCount = (id) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = '0';
+  };
+
+  resetCount('matrixCountAds');
+  resetCount('matrixCountAnalytics');
+  resetCount('matrixCountSocial');
+  resetCount('matrixCountRetarget');
+  resetCount('matrixCountFp');
+  resetCount('matrixCountPixel');
+  resetCount('matrixCountUnclassified');
+
+  const matrixTotalLabel = document.getElementById('matrixTotalLabel');
+  if (matrixTotalLabel) {
+    matrixTotalLabel.textContent = '0 Detected';
+    matrixTotalLabel.classList.add('clean');
+  }
+
   document.getElementById('permissionsList').innerHTML = '<div class="empty-state"><p>Browser system pages do not request permissions.</p></div>';
   document.getElementById('cookiesList').innerHTML = '<div class="empty-state"><p>Browser system pages do not set web cookies.</p></div>';
+  const trackersList = document.getElementById('trackersList');
+  if (trackersList) {
+    trackersList.innerHTML = '<div class="empty-state"><p>Browser system pages do not transmit third-party tracker requests.</p></div>';
+  }
 
   const verdictCard = document.getElementById('verdictCard');
   if (verdictCard) {

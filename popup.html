@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PrivacyLens</title>
+  <title>PrivacyLens - Website Privacy & Tracker Analyzer</title>
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
@@ -19,7 +19,7 @@
         </div>
         <div>
           <span class="brand-name">PrivacyLens</span>
-          <span class="brand-tag">Site Auditor</span>
+          <span class="brand-tag">Tracker Analyzer</span>
         </div>
       </div>
       <div class="header-actions">
@@ -65,13 +65,17 @@
       <span id="noticeText">Internal browser page.</span>
     </div>
 
-    <!-- Modern Segmented Navigation -->
+    <!-- Modern Segmented Navigation (4 Tabs) -->
     <nav class="segmented-nav">
       <button class="nav-segment active" data-tab="verdict">
         <span>Overview</span>
       </button>
+      <button class="nav-segment" data-tab="trackers">
+        <span>Trackers</span>
+        <span class="segment-badge" id="tabTrackersBadge">0</span>
+      </button>
       <button class="nav-segment" data-tab="permissions">
-        <span>Permissions</span>
+        <span>Perms</span>
         <span class="segment-badge" id="tabPermsCount">0</span>
       </button>
       <button class="nav-segment" data-tab="cookies">
@@ -91,7 +95,7 @@
             <div class="status-indicator-dot" id="verdictDot"></div>
             <div class="hero-titles">
               <h2 class="hero-status" id="verdictTitle">Auditing Page...</h2>
-              <p class="hero-caption" id="verdictSummary">Checking active permissions and cookie surveillance...</p>
+              <p class="hero-caption" id="verdictSummary">Checking advertising networks, analytics, and surveillance telemetry...</p>
             </div>
             <span class="status-tag" id="verdictBadge">Auditing</span>
           </div>
@@ -137,21 +141,66 @@
           </div>
 
           <div class="metrics-grid">
-            <div class="mini-metric">
-              <span class="mini-val" id="statPermsGranted">0</span>
-              <span class="mini-label">Active Perms</span>
+            <div class="mini-metric highlight-danger">
+              <span class="mini-val" id="statTrackersTotal">0</span>
+              <span class="mini-label">Total Trackers</span>
+            </div>
+            <div class="mini-metric highlight-warn">
+              <span class="mini-val" id="statThirdParties">0</span>
+              <span class="mini-label">3rd-Party Hosts</span>
             </div>
             <div class="mini-metric">
               <span class="mini-val" id="statCookiesTotal">0</span>
               <span class="mini-label">Cookies</span>
             </div>
-            <div class="mini-metric highlight-danger">
-              <span class="mini-val" id="statTrackers">0</span>
-              <span class="mini-label">Ad Trackers</span>
+            <div class="mini-metric">
+              <span class="mini-val" id="statPermsGranted">0</span>
+              <span class="mini-label">Active Perms</span>
             </div>
-            <div class="mini-metric highlight-warn">
-              <span class="mini-val" id="statInsecure">0</span>
-              <span class="mini-label">Insecure Flags</span>
+          </div>
+        </div>
+
+        <!-- Tracker Breakdown Matrix -->
+        <div class="tracker-matrix-card">
+          <div class="matrix-header">
+            <h3 class="section-title">Tracker Detection Breakdown</h3>
+            <span class="matrix-total" id="matrixTotalLabel">0 Detected</span>
+          </div>
+          <div class="matrix-grid">
+            <div class="matrix-item" data-jump-cat="advertising">
+              <span class="matrix-dot dot-ad"></span>
+              <span class="matrix-name">Ad Networks</span>
+              <span class="matrix-count" id="matrixCountAds">0</span>
+            </div>
+            <div class="matrix-item" data-jump-cat="analytics">
+              <span class="matrix-dot dot-analytics"></span>
+              <span class="matrix-name">Analytics & Metrics</span>
+              <span class="matrix-count" id="matrixCountAnalytics">0</span>
+            </div>
+            <div class="matrix-item" data-jump-cat="social">
+              <span class="matrix-dot dot-social"></span>
+              <span class="matrix-name">Social Media Pixels</span>
+              <span class="matrix-count" id="matrixCountSocial">0</span>
+            </div>
+            <div class="matrix-item" data-jump-cat="retargeting">
+              <span class="matrix-dot dot-retarget"></span>
+              <span class="matrix-name">Retargeting & Conv.</span>
+              <span class="matrix-count" id="matrixCountRetarget">0</span>
+            </div>
+            <div class="matrix-item" data-jump-cat="fingerprinting">
+              <span class="matrix-dot dot-fp"></span>
+              <span class="matrix-name">Device Fingerprinting</span>
+              <span class="matrix-count" id="matrixCountFp">0</span>
+            </div>
+            <div class="matrix-item" data-jump-cat="pixel">
+              <span class="matrix-dot dot-pixel"></span>
+              <span class="matrix-name">Tracking Beacons</span>
+              <span class="matrix-count" id="matrixCountPixel">0</span>
+            </div>
+            <div class="matrix-item" data-jump-cat="unclassified">
+              <span class="matrix-dot dot-unclass"></span>
+              <span class="matrix-name">Unclassified 3rd-Party</span>
+              <span class="matrix-count" id="matrixCountUnclassified">0</span>
             </div>
           </div>
         </div>
@@ -193,43 +242,240 @@
           </div>
         </div>
 
-        <!-- Plain-English Privacy Guide -->
+        <!-- Plain-English Privacy Guide: What Do Trackers Track? -->
         <div class="guide-section">
-          <h3 class="section-title">What this means for your data</h3>
+          <div class="guide-header">
+            <h3 class="section-title">What These Trackers Track (Simple Guide)</h3>
+          </div>
           
+          <!-- 1. Ad Networks -->
           <div class="guide-card">
             <div class="guide-title">
-              <span class="guide-bullet bullet-red"></span>
-              <span>Advertising & Profiling Trackers</span>
+              <div class="guide-title-left">
+                <span class="matrix-dot dot-ad"></span>
+                <span>1. Advertising Networks</span>
+              </div>
+              <span class="analogy-pill">Analogy: Digital Billboard</span>
             </div>
             <p class="guide-text">
-              Trackers follow you across different websites to assemble a behavioral history (shopping intent, political interests, medical topics) to target ads. You can clear them in the Cookies tab anytime.
+              Networks like Google DoubleClick, Amazon Ads, and AppNexus embedded across thousands of websites.
             </p>
+            <div class="guide-sub-heading">What they track:</div>
+            <ul class="guide-track-list">
+              <li>Articles and news you read daily</li>
+              <li>Your search habits, interests, and shopping categories</li>
+              <li>Your approximate city or region</li>
+            </ul>
+            <div class="guide-why">
+              <strong>Why they do it:</strong> Builds a commercial profile about your lifestyle so advertisers can bid on ads matching your habits.
+            </div>
           </div>
 
+          <!-- 2. Analytics -->
           <div class="guide-card">
             <div class="guide-title">
-              <span class="guide-bullet bullet-amber"></span>
-              <span>Hardware & Sensor Permissions</span>
+              <div class="guide-title-left">
+                <span class="matrix-dot dot-analytics"></span>
+                <span>2. Analytics & Audience Measurement</span>
+              </div>
+              <span class="analogy-pill">Analogy: In-Store Foot Traffic Camera</span>
             </div>
             <p class="guide-text">
-              Webcam, microphone, and location access expose real-time physical telemetry. Keep these set to "Ask each time" or "Blocked" unless actively participating in a video call.
+              Tools like Google Analytics (GA4), Hotjar, and Microsoft Clarity hired by site owners to understand visitors.
             </p>
+            <div class="guide-sub-heading">What they track:</div>
+            <ul class="guide-track-list">
+              <li>Where your mouse moves, clicks, and how far down you scroll</li>
+              <li>How many seconds or minutes you stay on a page</li>
+              <li>Your device model, browser, and operating system</li>
+            </ul>
+            <div class="guide-why">
+              <strong>Why they do it:</strong> Helps website owners see what content is popular and fix confusing pages where visitors drop off.
+            </div>
           </div>
 
+          <!-- 3. Social Media Pixels -->
           <div class="guide-card">
             <div class="guide-title">
-              <span class="guide-bullet bullet-blue"></span>
-              <span>Cookie Security (HttpOnly & HTTPS)</span>
+              <div class="guide-title-left">
+                <span class="matrix-dot dot-social"></span>
+                <span>3. Social Media Tracking Pixels</span>
+              </div>
+              <span class="analogy-pill">Analogy: Personal ID Scanner</span>
             </div>
             <p class="guide-text">
-              Safe authentication cookies use the <code>HttpOnly</code> flag to prevent theft by malicious web scripts, and the <code>Secure</code> flag to prevent interception on open Wi-Fi.
+              Tags placed by Meta (Facebook/Instagram), TikTok, LinkedIn, and Twitter/X on regular shopping sites and blogs.
             </p>
+            <div class="guide-sub-heading">What they track:</div>
+            <ul class="guide-track-list">
+              <li>That you visited this specific site outside of social media</li>
+              <li>Actions you took (viewing flights, reading articles, shopping)</li>
+            </ul>
+            <div class="guide-why">
+              <strong>Why they do it:</strong> Links your off-site browsing directly to your logged-in social media profile, causing ads for items you just browsed to appear on your feed.
+            </div>
+          </div>
+
+          <!-- 4. Retargeting -->
+          <div class="guide-card">
+            <div class="guide-title">
+              <div class="guide-title-left">
+                <span class="matrix-dot dot-retarget"></span>
+                <span>4. Retargeting & Conversion Trackers</span>
+              </div>
+              <span class="analogy-pill">Analogy: Persistent Salesperson</span>
+            </div>
+            <p class="guide-text">
+              Specialized ad platforms like Criteo, AdRoll, The Trade Desk, and Bing Ads designed to follow you around.
+            </p>
+            <div class="guide-sub-heading">What they track:</div>
+            <ul class="guide-track-list">
+              <li>Exact product names, prices, and colors you looked at</li>
+              <li>Items you added to your cart and abandoned</li>
+            </ul>
+            <div class="guide-why">
+              <strong>Why they do it:</strong> Follows you to other websites with ads showing the exact same items you viewed, urging you to finish the purchase.
+            </div>
+          </div>
+
+          <!-- 5. Device Fingerprinting -->
+          <div class="guide-card">
+            <div class="guide-title">
+              <div class="guide-title-left">
+                <span class="matrix-dot dot-fp"></span>
+                <span>5. Device Fingerprinting Scripts</span>
+              </div>
+              <span class="analogy-pill">Analogy: Digital Fingerprint Scanner</span>
+            </div>
+            <p class="guide-text">
+              The stealthiest tracking technique (e.g. FingerprintJS). Does NOT rely on cookies, so Incognito mode does not stop it.
+            </p>
+            <div class="guide-sub-heading">What they track:</div>
+            <ul class="guide-track-list">
+              <li>Your graphics card (GPU) model and canvas rendering quirks</li>
+              <li>Screen resolution, audio hardware frequencies, and installed fonts</li>
+            </ul>
+            <div class="guide-why">
+              <strong>Why they do it:</strong> Calculates a unique mathematical hash of your hardware so they recognize your device even after you clear your cookies.
+            </div>
+          </div>
+
+          <!-- 6. Tracking Pixels -->
+          <div class="guide-card">
+            <div class="guide-title">
+              <div class="guide-title-left">
+                <span class="matrix-dot dot-pixel"></span>
+                <span>6. Tracking Beacons & 1x1 Pixels</span>
+              </div>
+              <span class="analogy-pill">Analogy: Invisible Delivery Receipt</span>
+            </div>
+            <p class="guide-text">
+              Microscopic 1x1 transparent image files embedded in pages and emails that are invisible to the eye.
+            </p>
+            <div class="guide-sub-heading">What they track:</div>
+            <ul class="guide-track-list">
+              <li>The exact millisecond you opened the page or email</li>
+              <li>Your internet IP address and the previous page you came from</li>
+            </ul>
+            <div class="guide-why">
+              <strong>Why they do it:</strong> Sends an instant secret ping back to their server confirming you saw the page without needing interactive buttons.
+            </div>
+          </div>
+
+          <!-- 7. Unclassified Third-Party -->
+          <div class="guide-card">
+            <div class="guide-title">
+              <div class="guide-title-left">
+                <span class="matrix-dot dot-unclass"></span>
+                <span>7. Unclassified Third-Party Requests</span>
+              </div>
+              <span class="analogy-pill">Analogy: Unverified External Helper</span>
+            </div>
+            <p class="guide-text">
+              Connections made to external companies that are not recognized in standard public ad directories.
+            </p>
+            <div class="guide-sub-heading">What they track:</div>
+            <ul class="guide-track-list">
+              <li>May transmit background session tokens or telemetry</li>
+              <li>Loads external cross-origin executable scripts</li>
+            </ul>
+            <div class="guide-why">
+              <strong>Why we show it:</strong> Often innocent helper tools (live chat, fonts), but audited for full transparency without labeling them malicious.
+            </div>
           </div>
         </div>
       </section>
 
-      <!-- TAB 2: PERMISSIONS -->
+      <!-- TAB 2: COMPREHENSIVE TRACKER & NETWORK ANALYZER -->
+      <section id="tab-trackers" class="tab-panel">
+        <div class="tracker-header-bar">
+          <div class="search-field">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"/>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input type="text" id="trackerSearchInput" placeholder="Filter by domain, service, or URL...">
+          </div>
+          <button id="viewGuideBtn" class="btn-subtle" title="Read plain-English tracker definitions">
+            📖 Guide
+          </button>
+          <button id="refreshTrackersBtn" class="btn-subtle" title="Refresh live network requests">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+            </svg>
+            Refresh
+          </button>
+        </div>
+
+        <!-- Plain-English Contextual Explainer Banner -->
+        <div id="trackerCatExplainer" class="cat-explainer-box">
+          <div class="explainer-top">
+            <span class="explainer-icon">💡</span>
+            <span class="explainer-title" id="explainerTitle">All Trackers & Telemetry</span>
+            <span class="explainer-analogy" id="explainerAnalogy">Complete Telemetry View</span>
+          </div>
+          <p class="explainer-desc" id="explainerDesc">
+            Every network connection made to outside servers while browsing this website. Click any category pill below to inspect individual tracker types.
+          </p>
+        </div>
+
+        <!-- In-Page Fingerprinting / DOM Pixel Alert Callout -->
+        <div id="fingerprintAlertBox" class="probe-alert-box hidden">
+          <div class="probe-alert-header">
+            <span class="probe-icon">⚠️</span>
+            <span class="probe-title">In-Page Fingerprinting & Beacons Detected</span>
+          </div>
+          <ul class="probe-list" id="fingerprintAlertList"></ul>
+        </div>
+
+        <!-- Category Filter Pills -->
+        <div class="categories-scroller">
+          <button class="cat-pill active" data-tracker-cat="all">All (<span id="catTrackAll">0</span>)</button>
+          <button class="cat-pill" data-tracker-cat="advertising">Ad Networks (<span id="catTrackAds">0</span>)</button>
+          <button class="cat-pill" data-tracker-cat="analytics">Analytics (<span id="catTrackAnalytics">0</span>)</button>
+          <button class="cat-pill" data-tracker-cat="social">Social Pixels (<span id="catTrackSocial">0</span>)</button>
+          <button class="cat-pill" data-tracker-cat="retargeting">Retargeting (<span id="catTrackRetarget">0</span>)</button>
+          <button class="cat-pill" data-tracker-cat="fingerprinting">Fingerprinting (<span id="catTrackFp">0</span>)</button>
+          <button class="cat-pill" data-tracker-cat="pixel">Beacons & Pixels (<span id="catTrackPixel">0</span>)</button>
+          <button class="cat-pill" data-tracker-cat="unclassified">Unclassified (<span id="catTrackUnclassified">0</span>)</button>
+        </div>
+
+        <!-- Summary Strip -->
+        <div class="tracker-summary-strip">
+          <span id="trackerCountSummary">Auditing network requests...</span>
+          <span class="party-ratio" id="thirdPartyRatio">0 Third-Party</span>
+        </div>
+
+        <!-- Items List -->
+        <div id="trackersList" class="items-list">
+          <div class="loading-state">
+            <div class="spinner"></div>
+            <p>Auditing network requests and advertising trackers...</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 3: PERMISSIONS -->
       <section id="tab-permissions" class="tab-panel">
         <div class="panel-header">
           <div class="filter-pills">
@@ -249,7 +495,7 @@
         </div>
       </section>
 
-      <!-- TAB 3: COOKIES -->
+      <!-- TAB 4: COOKIES -->
       <section id="tab-cookies" class="tab-panel">
         <div class="cookie-toolbar">
           <div class="search-field">
@@ -297,6 +543,7 @@
     </footer>
   </div>
 
+  <script src="trackers.js"></script>
   <script src="breaches.js"></script>
   <script src="popup.js"></script>
 </body>

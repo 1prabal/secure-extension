@@ -1,9 +1,10 @@
 {
   "manifest_version": 3,
-  "name": "PrivacyLens - Website Permission & Cookie Auditor",
-  "version": "1.0.0",
-  "description": "Scans websites to reveal active permissions, security & privacy risks, and explains all cookies in clear, simple terms.",
+  "name": "PrivacyLens - Website Privacy & Tracker Analyzer",
+  "version": "2.0.0",
+  "description": "Analyzes third-party advertising, analytics, social pixels, retargeting, fingerprinting, cookies, and permissions.",
   "permissions": [
+    "webRequest",
     "cookies",
     "activeTab",
     "scripting",
@@ -15,7 +16,7 @@
   ],
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Scan Website Privacy & Cookies",
+    "default_title": "Analyze Website Privacy & Trackers",
     "default_icon": {
       "16": "icons/icon16.png",
       "48": "icons/icon48.png",

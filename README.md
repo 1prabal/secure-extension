@@ -1,116 +1,94 @@
-# 🛡️ PrivacyLens - Chrome Privacy & Cookie Auditor Extension
+# 🛡️ PrivacyLens - Website Privacy & Advertising Tracker Analyzer (v2.0)
 
-> **A handcrafted, light-themed Manifest V3 Chrome Extension that scans any website, audits requested permissions, security risks, and explains stored cookies in clear, simple English.**
+> **A modern, handcrafted Manifest V3 browser extension that analyzes any active website to audit advertising networks, audience analytics, social media pixels, conversion retargeting, tracking beacons, device fingerprinting scripts, permissions, and data breach history.**
 
 ---
 
-## ✨ Design & Features
+## 🎯 Key Detection Capabilities
 
-### 1. 🎨 Handcrafted Light Design
-- **Clean, Minimalist Aesthetics:** Designed with an Apple/Linear-grade crisp light palette (`#F8FAFC` background, `#FFFFFF` cards, `#E2E8F0` borders).
-- **Zero AI-Generated Feel:** Replaced messy emoji soup with crisp vector SVG icons, smooth iOS-style segmented controls, and human copywriting.
-- **Always-Visible Status:** Clean top site address bar with live security indicators and quick access to Chrome site settings.
+PrivacyLens v2.0 upgrades passive cookie auditing into a comprehensive, real-time **Advertising & Privacy Tracker Analyzer**:
 
-### 2. 🚨 Data Leak & Breach History Monitor
-- **Historical Breach Intelligence:** Automatically scans if the domain you are visiting has a documented history of major data breaches (e.g. LinkedIn, Adobe, Canva, Yahoo, Twitter/X, AT&T, Dropbox, Ticketmaster, etc.).
-- **Compromised Data Indicators:** Shows exact data types compromised in the breach (e.g. `Passwords`, `Emails`, `Phone numbers`, `Physical addresses`, `Credit card partials`).
-- **Real-Time Leak Transmission Checks:**
-  - **Form Submission Security:** Audits whether login/password fields submit over encrypted HTTPS or vulnerable plain HTTP.
-  - **External Exfiltration Count:** Displays how many external third-party tracker domains are receiving telemetry from this page.
-- **One-Click Email Check:** Direct shortcut link to verify whether your personal email address was caught in that specific domain's leaks.
+1. **Third-Party Network Request Detection**
+   - Captures and inspects all third-party network requests initiated by the current website via `chrome.webRequest` and page resource timing APIs.
+   - Distinguishes third-party domains from the current website's root domain using multi-part TLD-aware logic (e.g., `news.google.co.uk` vs. `pay.amazon.co.in`).
 
-### 3. 🔍 Website Permission Scanner & Threat Analysis
-- **Scans Real-Time Permissions:**
-  - 📍 **Geolocation (GPS / Coordinates)**
-  - 📷 **Camera (Webcam)**
-  - 🎙️ **Microphone (Audio)**
-  - 🔔 **Desktop Push Notifications**
-  - 📋 **Clipboard (Read Access)**
-  - 📝 **Clipboard (Write Access)**
-  - 📱 **Motion Sensors (Accelerometer, Gyroscope, Magnetometer)**
-  - 💾 **Persistent Storage (Resilient Super-Cookies)**
-  - ☀️ **Screen Wake Lock**
-  - 🎹 **MIDI Audio Devices**
-- **State Badges:** Instantly shows whether each permission is `Granted (Active)`, `Prompt (Ask)`, `Denied (Blocked)`, or `Unsupported`.
-- **Harmful Impact Breakdown:** Clearly explains how each permission can be abused (e.g., physical surveillance, audio eavesdropping, credential theft, notification spam, clipboard hijacking).
-- **One-Click Management:** Direct button to jump straight into Chrome's native site permissions settings to revoke or block privileges.
+2. **Advertising Networks Identification**
+   - Identifies requests to known advertising networks (Google Ad Manager / DoubleClick, Amazon Advertising, AppNexus / Xandr, PubMatic, OpenX, Rubicon / Magnite, Taboola, Outbrain, Criteo, Index Exchange, Media.net, etc.).
+   - Displays clear indicators explaining the ad network's role in cross-site profiling and real-time bidding.
 
-### 2. 🍪 Simple & Concise Cookie Breakdown
-- **Plain-English Explanations:** Translates cryptic cookie names (like `_ga`, `_fbp`, `IDE`) into plain language ("Tracks your identity and ad interactions across multiple partner websites").
-- **Smart Categorization:**
-  - 🎯 **Tracking & Ads:** Cross-site behavioral advertising and ad attribution.
-  - 📊 **Analytics:** Metrics on clicks, time spent, and scroll behavior.
-  - 🔑 **Session & Authentication:** Login tokens, security credentials, and CSRF tokens.
-  - ⚙️ **Functional & Preferences:** Theme modes, language settings, and consent banner states.
-  - ❓ **Other:** Miscellaneous site data.
-- **Security & Flag Auditing:**
-  - 🔒 **Secure Flag:** Checks if cookies are transmitted over encrypted HTTPS.
-  - 🛡️ **HttpOnly Flag:** Checks if sensitive tokens are shielded from malicious JavaScript (XSS attacks).
-  - 🛡️ **SameSite Flag:** Protects against Cross-Site Request Forgery (CSRF).
-  - ⏱️ **Lifespan Tracker:** Identifies session cookies vs. long-lived persistent "zombie cookies" (> 1 year).
-- **🧹 One-Click "Clear Cookies":** Purge all cookies stored by the active site to reset tracking IDs immediately.
-- **📥 Audit Export:** Export full JSON report of the site's privacy profile for documentation or reporting.
+3. **Analytics & Audience Measurement**
+   - Detects audience-measurement services (Google Analytics Universal & GA4, Adobe Experience Cloud / Omniture, Mixpanel, Amplitude, Segment, Heap, Hotjar heatmaps, Microsoft Clarity, Chartbeat, Comscore).
+   - Surfaces event recording, session replay, and engagement telemetry.
 
-### 3. ⚖️ Executive Safety Verdict: "Is It Safe or Harmful?"
-- **Instant High-Level Decision:** Directly at the top of the popup, gives an immediate answer:
-  - 🟢 **SAFE TO BROWSE:** No invasive permissions active and zero third-party ad trackers.
-  - 🟡 **CAUTION: TRACKING DETECTED:** Advertising cookies are monitoring your browsing habits, but hardware access is securely locked.
-  - 🔴 **HARMFUL / HIGH PRIVACY THREAT:** Invasive hardware permissions (camera/mic/GPS) are granted, or high-risk insecure cookies are exposed.
-- **Two-Column Quick Breakdown:**
-  - ✅ **What's Safe:** Highlights what protections are in place (e.g., webcam blocked, HTTPS encrypted, session cookies cleared on close).
-  - ⚠️ **Harmful Impacts & Risks:** Summarizes exact threats (e.g., ad tracking cookies profiling your shopping/reading, location tracking, missing HttpOnly protection).
+4. **Social Media Tracking Services**
+   - Detects social tracking tags that match off-site browsing to personal social profiles (Meta / Facebook Pixel, TikTok Pixel, Twitter / X Pixel, LinkedIn Insight Tag, Pinterest Tag, Snapchat Pixel, Reddit Pixel).
 
-### 4. 🎯 Privacy Health Score
-- Aggregates permissions, tracker counts, and insecure cookie flags into a real-time **Privacy Score (0–100 / Grades A to F)**.
-- Color-coded badges and risk summary alerts.
+5. **Retargeting & Conversion Measurement**
+   - Flags cross-platform retargeting and intent-measurement platforms (Criteo Dynamic Retargeting, AdRoll / NextRoll, The Trade Desk UID2, Microsoft Bing Ads UET, LiveRamp Identity Resolution, RTB House).
+
+6. **Tracking Pixel & Beacon Detection**
+   - Detects 1x1 invisible tracking gifs, `/pixel`, `/tr`, `/collect`, `/p.gif`, and `navigator.sendBeacon` background telemetry endpoints.
+   - Inspects in-page DOM for hidden 0x0 or 1x1 `<img>` and `<iframe>` beacon elements.
+
+7. **Rule-Based Device Fingerprinting Detection**
+   - Uses transparent, rule-based indicators to detect device fingerprinting:
+     - Global fingerprinting libraries present in the page context (`FingerprintJS`, `ClientJS`, `CreepJS`).
+     - Script patterns probing HTML5 Canvas readouts (`toDataURL`, `getImageData`).
+     - WebGL GPU parameter probing (`WEBGL_debug_renderer_info`).
+     - AudioContext oscillator frequency sampling.
+   - Highlights in-page fingerprinting alerts with specific evidence.
+
+8. **Unclassified Third-Party Request Detection (Non-Malicious Labeling)**
+   - Transparently audits unknown third-party requests that don't match public ad directories.
+   - Categorizes them as **"Unclassified Third-Party"** *without automatically labeling them malicious*.
+   - Explains transparent reasons (e.g., "Carries long query payload or encoded identifiers", "Loads external cross-origin executable script").
+
+9. **Website Hardware & Browser Permissions Scanner**
+   - Real-time audit of Camera, Microphone, Geolocation (GPS), Clipboard Read/Write, Desktop Push Notifications, Motion Sensors, Persistent Storage, Screen Wake Lock, and MIDI.
+   - Direct button to open Chrome's native site permissions settings to revoke privileges.
+
+10. **Data Breach & Leak History Monitor**
+    - Checks whether the active domain has a documented history of major data breaches (HaveIBeenPwned intelligence).
+    - Audits live form submission transport (HTTPS vs. unencrypted HTTP) and external telemetry receivers.
+
+---
+
+## 🎨 User Interface & Navigation
+
+- **Segmented 4-Tab Control:**
+  - **Overview:** Executive Safety Verdict ("Is It Safe?"), Privacy Health Score (0–100), Metric Strip, **Tracker Detection Breakdown Matrix**, Breach Monitor, and Plain-English Privacy Guide.
+  - **Trackers:** Comprehensive request analyzer with live search, 8 category filter pills, in-page fingerprinting alert callout, URL copy buttons, and transparent rule-based indicators.
+  - **Perms:** Hardware & system permissions scanner with status filters (Allowed, Asks First, Blocked).
+  - **Cookies:** Cookie categorization, security flag audit (Secure, HttpOnly, SameSite, Lifespan), and 1-click cookie cleaner.
+- **Deep-Link Matrix Navigation:** Clicking any category in the Overview Tracker Matrix jumps directly to the Trackers tab with the selected filter pre-activated.
+- **Handcrafted Light Theme:** Built with a clean Apple/Linear-grade aesthetic (`#F8FAFC` background, `#FFFFFF` cards, `#E2E8F0` borders, vector SVG icons).
 
 ---
 
 ## 🚀 How to Install in Google Chrome
 
 1. Open Google Chrome.
-2. In the URL address bar, navigate to:
+2. In the URL address bar, enter:
    ```text
    chrome://extensions
    ```
-3. In the top-right corner of the Extensions page, turn **ON** the toggle switch for **"Developer mode"**.
-4. In the top-left corner, click the **"Load unpacked"** button.
-5. In the file picker dialog, select this folder:
+3. In the top-right corner, toggle **"Developer mode"** to **ON**.
+4. In the top-left corner, click **"Load unpacked"**.
+5. Select the project folder:
    ```text
    C:\Users\gamin\Downloads\Secure Extension
    ```
-6. The extension **"PrivacyLens - Website Permission & Cookie Auditor"** will now appear in your Chrome toolbar.
-7. Click the extension puzzle icon in Chrome's top bar and pin **PrivacyLens** to your toolbar for quick access!
+6. The extension **"PrivacyLens - Website Privacy & Tracker Analyzer"** will be loaded and pinned to your Chrome toolbar.
 
 ---
 
-## 🧪 How to Test It
+## 🧪 Testing the Extension
 
-1. Open any regular website (e.g., `https://wikipedia.org`, `https://github.com`, or any news/shopping website).
-2. Click the **PrivacyLens** shield icon in your Chrome toolbar.
+1. Visit any media, shopping, or content site (e.g., `https://cnn.com`, `https://theverge.com`, `https://nytimes.com`, `https://amazon.com`).
+2. Click the **PrivacyLens** shield icon in the toolbar.
 3. Observe:
-   - **Privacy Score & Grade** in the circular meter.
-   - **Active Permissions** in the `Permissions` tab.
-   - **Cookies & Trackers** in the `Cookies` tab. Filter by Tracking, Analytics, or Search by name.
-   - **Threat Analysis** in the `Threat Analysis` tab for plain-language explanations of privacy risks.
-4. Try the **"Clear Cookies"** button to flush tracking cookies and reset your site identity.
-5. Click **"Manage Permissions ↗"** to quickly toggle browser permissions for that domain.
-
----
-
-## 📁 File Structure
-
-```text
-Secure Extension/
-├── manifest.json         # Chrome Manifest V3 configuration
-├── popup.html            # Extension UI structure with tabs & meters
-├── popup.css             # Cyber-clean dark theme stylesheet
-├── popup.js              # Permission scanning, cookie categorizer & scoring
-├── background.js         # Service worker & toolbar badge manager
-├── generate_icons.js     # Standalone icon generator
-├── icons/
-│   ├── icon16.png        # 16x16 icon
-│   ├── icon48.png        # 48x48 icon
-│   └── icon128.png       # 128x128 icon
-└── README.md             # Documentation and usage guide
-```
+   - Live badge counter showing total detected trackers on the active tab icon.
+   - In **Overview**: Review the **Tracker Detection Breakdown Matrix** showing live counts for Ad Networks, Analytics, Social Pixels, Retargeting, Fingerprinting, Beacons, and Unclassified third parties.
+   - Click any matrix tile or switch to the **Trackers** tab to view individual requests, copy request URLs, and view evidence indicators.
+   - Test the category pills (`Ad Networks`, `Analytics`, `Social Pixels`, `Retargeting`, `Fingerprinting`, `Beacons & Pixels`, `Unclassified`) or use the search bar to filter by domain or URL.
+   - Click **"Export Audit Report"** in the footer to download a full structured JSON audit of the site's privacy and tracker posture.
