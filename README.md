@@ -76,7 +76,7 @@ PrivacyLens v2.0 upgrades passive cookie auditing into a comprehensive, real-tim
 4. In the top-left corner, click **"Load unpacked"**.
 5. Select the project folder:
    ```text
-   C:\Users\gamin\Downloads\Secure Extension
+   eg -: C:\Users\Downloads\Secure Extension
    ```
 6. The extension **"PrivacyLens - Website Privacy & Tracker Analyzer"** will be loaded and pinned to your Chrome toolbar.
 
