@@ -41,8 +41,19 @@
           </svg>
         </span>
         <span class="site-domain" id="domainName">Analyzing current page...</span>
+        <button id="copyCleanUrlBtn" class="btn-clean-url hidden" title="Copy Sanitized URL without tracking parameters">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+          </svg>
+          Clean Link
+        </button>
       </div>
       <div class="site-controls">
+        <button id="shieldToggleBtn" class="shield-toggle active" title="Toggle active blocker shield">
+          <span class="shield-dot"></span>
+          <span id="shieldToggleText">Shield ON</span>
+        </button>
         <span class="score-pill" id="miniScorePill">Score: --</span>
         <button id="openSettingsBtn" class="btn-subtle" title="Manage site permissions in Chrome Settings">
           Site Settings
@@ -55,6 +66,16 @@
       </div>
     </div>
 
+    <!-- URL Sanitizer Banner (Feature 2) -->
+    <div id="urlSanitizerBanner" class="sanitizer-banner hidden">
+      <span class="sanitizer-icon">🧹</span>
+      <div class="sanitizer-info">
+        <strong id="sanitizerTitle">Tracking Parameters Detected</strong>
+        <span id="sanitizerDetail">Identified cross-site tracking tags in page link.</span>
+      </div>
+      <button id="cleanUrlActionBtn" class="btn-sanitizer-action" title="Strip tracking parameters from address bar">Clean URL</button>
+    </div>
+
     <!-- Notice Banner (if internal page or error) -->
     <div id="noticeBanner" class="alert-banner hidden">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -65,7 +86,7 @@
       <span id="noticeText">Internal browser page.</span>
     </div>
 
-    <!-- Modern Segmented Navigation (4 Tabs) -->
+    <!-- Modern Segmented Navigation (5 Tabs) -->
     <nav class="segmented-nav">
       <button class="nav-segment active" data-tab="verdict">
         <span>Overview</span>
@@ -81,6 +102,9 @@
       <button class="nav-segment" data-tab="cookies">
         <span>Cookies</span>
         <span class="segment-badge" id="tabCookiesCount">0</span>
+      </button>
+      <button class="nav-segment" data-tab="dashboard">
+        <span>Dashboard</span>
       </button>
     </nav>
 
@@ -239,6 +263,25 @@
               <span class="leak-label">External Receivers:</span>
               <span class="leak-val" id="exfilLeakVal">0 Trackers</span>
             </div>
+          </div>
+        </div>
+
+        <!-- Feature 3: Keystroke & Input Snooping Watchdog Card -->
+        <div class="watchdog-card safe" id="watchdogCard">
+          <div class="watchdog-top">
+            <div class="watchdog-badge safe" id="watchdogBadge">
+              <span class="watchdog-dot" id="watchdogDot"></span>
+              <span id="watchdogStatusText">Keystroke Watchdog: Secure</span>
+            </div>
+            <span class="watchdog-sub" id="watchdogInputsCount">0 Inputs Scanned</span>
+          </div>
+
+          <div class="watchdog-content">
+            <h4 class="watchdog-headline" id="watchdogHeadline">No Input Snooping Detected</h4>
+            <p class="watchdog-summary" id="watchdogSummary">
+              No session replay recorders or keylogging scripts are intercepting unsubmitted form keystrokes on this page.
+            </p>
+            <div class="watchdog-threats" id="watchdogThreats"></div>
           </div>
         </div>
 
@@ -529,6 +572,112 @@
             <div class="spinner"></div>
             <p>Analyzing stored cookies...</p>
           </div>
+        </div>
+      </section>
+
+      <!-- TAB 5: PRIVACY EXPOSURE DASHBOARD (Feature 8) -->
+      <section id="tab-dashboard" class="tab-panel">
+        <div class="dashboard-header">
+          <div class="dash-title-group">
+            <h3 class="dash-title">My Privacy Exposure & Analytics</h3>
+            <p class="dash-desc">Long-term tracking footprint aggregated strictly on your machine.</p>
+          </div>
+          <span class="privacy-local-badge" title="Data never leaves your browser">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+            100% Local Storage
+          </span>
+        </div>
+
+        <!-- 4-Stat Metric Grid -->
+        <div class="dash-stats-grid">
+          <div class="dash-stat-card card-blocked">
+            <div class="dash-stat-icon">🛡️</div>
+            <div class="dash-stat-content">
+              <span class="dash-stat-num" id="dashBlockedTotal">0</span>
+              <span class="dash-stat-label">Trackers Blocked</span>
+            </div>
+          </div>
+          <div class="dash-stat-card card-detected">
+            <div class="dash-stat-icon">👁️</div>
+            <div class="dash-stat-content">
+              <span class="dash-stat-num" id="dashTrackersTotal">0</span>
+              <span class="dash-stat-label">Trackers Encountered</span>
+            </div>
+          </div>
+          <div class="dash-stat-card card-stripped">
+            <div class="dash-stat-icon">🧹</div>
+            <div class="dash-stat-content">
+              <span class="dash-stat-num" id="dashParamsStripped">0</span>
+              <span class="dash-stat-label">URL Params Stripped</span>
+            </div>
+          </div>
+          <div class="dash-stat-card card-sites">
+            <div class="dash-stat-icon">🌐</div>
+            <div class="dash-stat-content">
+              <span class="dash-stat-num" id="dashSitesAudited">0</span>
+              <span class="dash-stat-label">Websites Protected</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Top Tracking Giants Section -->
+        <div class="dash-section">
+          <div class="dash-section-header">
+            <h4 class="dash-section-title">Top Tracking Giants Profiling You</h4>
+            <span class="dash-section-sub" id="dashGiantsSub">Ranked by frequency</span>
+          </div>
+          <div id="dashNetworkList" class="network-ranking-list">
+            <div class="dash-empty-state">
+              <p>No tracking history recorded yet. Browse the web to generate your tracking profile map.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Protection Controls -->
+        <div class="dash-section dash-settings">
+          <h4 class="dash-section-title">Protection Controls</h4>
+          <div class="dash-setting-row">
+            <div class="dash-setting-info">
+              <strong>Active Tracker Shield (DNR)</strong>
+              <span>Block known ad networks, pixels, and fingerprinting scripts automatically.</span>
+            </div>
+            <label class="switch-label">
+              <input type="checkbox" id="dashShieldToggle" checked>
+              <span class="switch-slider"></span>
+            </label>
+          </div>
+          <div class="dash-setting-row">
+            <div class="dash-setting-info">
+              <strong>Auto URL Parameter Stripper</strong>
+              <span>Remove utm_*, fbclid, and attribution tokens upon tab navigation.</span>
+            </div>
+            <label class="switch-label">
+              <input type="checkbox" id="dashStripToggle" checked>
+              <span class="switch-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="dash-actions">
+          <button id="exportExposureBtn" class="btn-secondary-sm">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            Export History JSON
+          </button>
+          <button id="clearExposureBtn" class="btn-danger-sm">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="3 6 5 6 21 6"/>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+            </svg>
+            Reset Exposure History
+          </button>
         </div>
       </section>
 

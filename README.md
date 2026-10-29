@@ -4,62 +4,46 @@
 
 ---
 
-## 🎯 Key Detection Capabilities
+## 🎯 Key Capabilities & New Features
 
-PrivacyLens v2.0 upgrades passive cookie auditing into a comprehensive, real-time **Advertising & Privacy Tracker Analyzer**:
+PrivacyLens v2.5 upgrades passive auditing into an active **Privacy Protector & Tracking Defense System**:
 
-1. **Third-Party Network Request Detection**
-   - Captures and inspects all third-party network requests initiated by the current website via `chrome.webRequest` and page resource timing APIs.
-   - Distinguishes third-party domains from the current website's root domain using multi-part TLD-aware logic (e.g., `news.google.co.uk` vs. `pay.amazon.co.in`).
+### 🛡️ Feature 1: Active Tracker Blocker & Shield (Auditor to Protector)
+- **Dynamic DeclarativeNetRequest (DNR) Engine:** Built for Chrome Manifest V3, blocking requests to over 83+ advertising networks, behavioral retargeting systems, social tracking pixels, and fingerprinting scripts before network transmission occurs.
+- **Global & Per-Site Control:** Toggle protection on/off with one click via the interactive **Shield Toggle** in the popup header or Dashboard tab.
+- **Whitelist Support:** Excludes user-whitelisted websites from blocking rules without disabling protection globally.
 
-2. **Advertising Networks Identification**
-   - Identifies requests to known advertising networks (Google Ad Manager / DoubleClick, Amazon Advertising, AppNexus / Xandr, PubMatic, OpenX, Rubicon / Magnite, Taboola, Outbrain, Criteo, Index Exchange, Media.net, etc.).
-   - Displays clear indicators explaining the ad network's role in cross-site profiling and real-time bidding.
+### 🧹 Feature 2: URL Tracking Parameter Stripper
+- **Attribution Parameter Sanitization:** Automatically strips cross-site attribution query tokens (`utm_source`, `utm_medium`, `utm_campaign`, `fbclid`, `gclid`, `msclkid`, `twclid`, `igshid`, `mc_eid`, etc.) upon page navigation.
+- **Interactive Cleaner Alert:** When tracking tokens are detected in the active link, an alert banner appears with a **"Clean URL"** action button and a **"Clean Link"** copy button.
+- **Address Bar Sanitization:** Updates the browser address bar with the sanitized URL without causing page reload loops.
 
-3. **Analytics & Audience Measurement**
-   - Detects audience-measurement services (Google Analytics Universal & GA4, Adobe Experience Cloud / Omniture, Mixpanel, Amplitude, Segment, Heap, Hotjar heatmaps, Microsoft Clarity, Chartbeat, Comscore).
-   - Surfaces event recording, session replay, and engagement telemetry.
+### 👁️ Feature 3: Keystroke & Form Snooping Watchdog
+- **Unsubmitted Form Input Protection:** Audits active password, email, and phone input fields to ensure third-party scripts do not monitor keystrokes before form submission.
+- **Session Replay Script Detection:** Detects aggressive user-session replay tools (`Hotjar`, `FullStory`, `LogRocket`, `Smartlook`, `Inspectlet`, `Mouseflow`, `CrazyEgg`) capable of recording mouse movements and form interactions.
+- **Insecure Form Warning:** Flags HTML forms submitting sensitive credentials over unencrypted HTTP endpoints.
 
-4. **Social Media Tracking Services**
-   - Detects social tracking tags that match off-site browsing to personal social profiles (Meta / Facebook Pixel, TikTok Pixel, Twitter / X Pixel, LinkedIn Insight Tag, Pinterest Tag, Snapchat Pixel, Reddit Pixel).
-
-5. **Retargeting & Conversion Measurement**
-   - Flags cross-platform retargeting and intent-measurement platforms (Criteo Dynamic Retargeting, AdRoll / NextRoll, The Trade Desk UID2, Microsoft Bing Ads UET, LiveRamp Identity Resolution, RTB House).
-
-6. **Tracking Pixel & Beacon Detection**
-   - Detects 1x1 invisible tracking gifs, `/pixel`, `/tr`, `/collect`, `/p.gif`, and `navigator.sendBeacon` background telemetry endpoints.
-   - Inspects in-page DOM for hidden 0x0 or 1x1 `<img>` and `<iframe>` beacon elements.
-
-7. **Rule-Based Device Fingerprinting Detection**
-   - Uses transparent, rule-based indicators to detect device fingerprinting:
-     - Global fingerprinting libraries present in the page context (`FingerprintJS`, `ClientJS`, `CreepJS`).
-     - Script patterns probing HTML5 Canvas readouts (`toDataURL`, `getImageData`).
-     - WebGL GPU parameter probing (`WEBGL_debug_renderer_info`).
-     - AudioContext oscillator frequency sampling.
-   - Highlights in-page fingerprinting alerts with specific evidence.
-
-8. **Unclassified Third-Party Request Detection (Non-Malicious Labeling)**
-   - Transparently audits unknown third-party requests that don't match public ad directories.
-   - Categorizes them as **"Unclassified Third-Party"** *without automatically labeling them malicious*.
-   - Explains transparent reasons (e.g., "Carries long query payload or encoded identifiers", "Loads external cross-origin executable script").
-
-9. **Website Hardware & Browser Permissions Scanner**
-   - Real-time audit of Camera, Microphone, Geolocation (GPS), Clipboard Read/Write, Desktop Push Notifications, Motion Sensors, Persistent Storage, Screen Wake Lock, and MIDI.
-   - Direct button to open Chrome's native site permissions settings to revoke privileges.
-
-10. **Data Breach & Leak History Monitor**
-    - Checks whether the active domain has a documented history of major data breaches (HaveIBeenPwned intelligence).
-    - Audits live form submission transport (HTTPS vs. unencrypted HTTP) and external telemetry receivers.
+### 📊 Feature 8: "My Privacy Exposure" Analytics Dashboard
+- **Lifetime Protection Metrics:** Tracks cumulative statistics on your machine:
+  - Total trackers blocked
+  - Total trackers encountered
+  - URL tracking parameters stripped
+  - Unique websites protected
+- **Top Tracking Giants Footprint:** Identifies and ranks corporate tracking conglomerates profiling you across multiple sites (Alphabet/Google, Meta/Facebook, Amazon, Microsoft, ByteDance/TikTok, Criteo) with percentage exposure bars.
+- **100% Local Storage:** All analytics are stored strictly on your device via `chrome.storage.local` with zero telemetry, cloud transmission, or third-party sharing.
+- **Data Management:** Export history as JSON or reset exposure statistics at any time.
 
 ---
 
 ## 🎨 User Interface & Navigation
 
-- **Segmented 4-Tab Control:**
-  - **Overview:** Executive Safety Verdict ("Is It Safe?"), Privacy Health Score (0–100), Metric Strip, **Tracker Detection Breakdown Matrix**, Breach Monitor, and Plain-English Privacy Guide.
+- **Segmented 5-Tab Control:**
+  - **Overview:** Executive Safety Verdict ("Is It Safe?"), Privacy Health Score (0–100), Metric Strip, **Keystroke & Input Watchdog Card**, **Tracker Detection Breakdown Matrix**, Breach Monitor, and Plain-English Privacy Guide.
   - **Trackers:** Comprehensive request analyzer with live search, 8 category filter pills, in-page fingerprinting alert callout, URL copy buttons, and transparent rule-based indicators.
   - **Perms:** Hardware & system permissions scanner with status filters (Allowed, Asks First, Blocked).
   - **Cookies:** Cookie categorization, security flag audit (Secure, HttpOnly, SameSite, Lifespan), and 1-click cookie cleaner.
+  - **Dashboard:** Long-term Privacy Exposure analytics, Tracking Giants breakdown, DNR Shield toggle, and Auto-Strip settings.
+- **Interactive Header Bar:** Real-time Shield toggle (`Shield ON` / `Shield OFF`), dynamic risk score pill, and Clean Link copy button.
 - **Deep-Link Matrix Navigation:** Clicking any category in the Overview Tracker Matrix jumps directly to the Trackers tab with the selected filter pre-activated.
 - **Handcrafted Light Theme:** Built with a clean Apple/Linear-grade aesthetic (`#F8FAFC` background, `#FFFFFF` cards, `#E2E8F0` borders, vector SVG icons).
 

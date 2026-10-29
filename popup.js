@@ -171,6 +171,9 @@ let trackerSearchQuery = '';
 
 async function initApp() {
   setupEventListeners();
+  initShield();
+  initSanitizer();
+  initDashboard();
   await scanCurrentWebsite();
 }
 
@@ -300,6 +303,9 @@ function switchTab(tabName) {
   if (scrollContainer) {
     scrollContainer.scrollTop = 0;
   }
+  if (tabName === 'dashboard') {
+    renderDashboard();
+  }
 }
 
 /**
@@ -312,9 +318,14 @@ async function scanCurrentWebsite() {
   const footerScanTime = document.getElementById('footerScanTime');
 
   noticeBanner.classList.add('hidden');
-  footerScanTime.textContent = 'Auditing...';
-
   try {
+    if (!window.chrome || !chrome.tabs || !chrome.tabs.query) {
+      domainNameEl.textContent = 'Extension Preview';
+      renderRestrictedState();
+      footerScanTime.textContent = 'Ready';
+      return;
+    }
+
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     currentTab = tab;
 
@@ -337,11 +348,15 @@ async function scanCurrentWebsite() {
     currentOrigin = urlObj.origin;
     domainNameEl.textContent = urlObj.hostname || tab.url;
 
-    // Run parallel audits
+    // Feature 2: Check URL tracking parameter presence
+    checkUrlSanitization(tab.url);
+
+    // Run parallel audits (including Feature 3: Keystroke & Form Snooping Watchdog)
     await Promise.all([
       scanPermissions(tab),
       scanCookies(tab),
-      scanTrackers(tab)
+      scanTrackers(tab),
+      scanWatchdog(tab)
     ]);
 
     // Audit historical breaches & live data leak status
@@ -1541,4 +1556,427 @@ function renderRestrictedState() {
     document.getElementById('exfilLeakVal').textContent = '0 Receivers';
     document.getElementById('exfilLeakVal').style.color = '#059669';
   }
+
+  const watchdogCard = document.getElementById('watchdogCard');
+  if (watchdogCard) {
+    watchdogCard.className = 'watchdog-card safe';
+    const wb = document.getElementById('watchdogBadge');
+    if (wb) wb.className = 'watchdog-badge';
+    const wd = document.getElementById('watchdogDot');
+    if (wd) wd.className = 'watchdog-dot';
+    const wst = document.getElementById('watchdogStatusText');
+    if (wst) wst.textContent = 'Internal System Page';
+    const wh = document.getElementById('watchdogHeadline');
+    if (wh) wh.textContent = 'Protected Browser Environment';
+    const ws = document.getElementById('watchdogSummary');
+    if (ws) ws.textContent = 'System pages operate in isolated sandboxes with zero external script execution.';
+    const wt = document.getElementById('watchdogThreats');
+    if (wt) wt.innerHTML = '<div class="threat-item safe"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg><span>Zero third-party script intervention</span></div>';
+  }
+
+  const sanitizerBanner = document.getElementById('urlSanitizerBanner');
+  if (sanitizerBanner) sanitizerBanner.classList.add('hidden');
+  const copyCleanUrlBtn = document.getElementById('copyCleanUrlBtn');
+  if (copyCleanUrlBtn) copyCleanUrlBtn.classList.add('hidden');
 }
+
+/* ==========================================================================
+   FEATURE 1: ACTIVE TRACKER SHIELD & CONTROLS
+   ========================================================================== */
+function getShieldState(res) {
+  if (!res) return undefined;
+  if (typeof res.shieldEnabled === 'boolean') return res.shieldEnabled;
+  if (typeof res.shieldActive === 'boolean') return res.shieldActive;
+  return undefined;
+}
+
+function initShield() {
+  const shieldBtn = document.getElementById('shieldToggleBtn');
+  if (shieldBtn) {
+    shieldBtn.addEventListener('click', async () => {
+      // Optimistically flip visual state immediately for snappy response
+      const currentlyActive = shieldBtn.classList.contains('active');
+      const targetState = !currentlyActive;
+      updateShieldUI(targetState);
+
+      try {
+        if (window.chrome && chrome.runtime && chrome.runtime.sendMessage) {
+          chrome.runtime.sendMessage({ action: 'toggleShield' }, (res) => {
+            const state = getShieldState(res);
+            if (state !== undefined) {
+              updateShieldUI(state);
+            }
+          });
+        }
+      } catch (e) {
+        console.warn('Shield toggle error:', e);
+      }
+    });
+  }
+
+  try {
+    if (window.chrome && chrome.runtime && chrome.runtime.sendMessage) {
+      chrome.runtime.sendMessage({ action: 'getShieldStatus' }, (res) => {
+        const state = getShieldState(res);
+        if (state !== undefined) {
+          updateShieldUI(state);
+        }
+      });
+    } else if (window.chrome && chrome.storage && chrome.storage.local) {
+      chrome.storage.local.get(['shieldEnabled'], (data) => {
+        updateShieldUI(data.shieldEnabled !== false);
+      });
+    }
+  } catch (e) {}
+}
+
+function updateShieldUI(isActive) {
+  const shieldBtn = document.getElementById('shieldToggleBtn');
+  const shieldLabel = document.getElementById('shieldToggleText');
+  const dashShieldToggle = document.getElementById('dashShieldToggle');
+
+  if (shieldBtn) {
+    shieldBtn.classList.toggle('active', !!isActive);
+    shieldBtn.title = isActive ? 'Tracker Shield Active: Known trackers blocked' : 'Tracker Shield Inactive: Click to enable';
+  }
+  if (shieldLabel) {
+    shieldLabel.textContent = isActive ? 'Shield ON' : 'Shield OFF';
+  }
+  if (dashShieldToggle) {
+    dashShieldToggle.checked = !!isActive;
+  }
+}
+
+/* ==========================================================================
+   FEATURE 2: URL TRACKING PARAMETER SANITIZER
+   ========================================================================== */
+let currentCleanUrl = null;
+
+function checkUrlSanitization(urlStr) {
+  const banner = document.getElementById('urlSanitizerBanner');
+  const copyBtn = document.getElementById('copyCleanUrlBtn');
+  const titleEl = document.getElementById('sanitizerTitle');
+  const detailEl = document.getElementById('sanitizerDetail');
+  const actionBtn = document.getElementById('cleanUrlActionBtn');
+
+  if (!urlStr || typeof stripTrackingParameters !== 'function') {
+    if (banner) banner.classList.add('hidden');
+    if (copyBtn) copyBtn.classList.add('hidden');
+    return;
+  }
+
+  const stripped = stripTrackingParameters(urlStr);
+  if (stripped.hasChanged && stripped.strippedParams && stripped.strippedParams.length > 0) {
+    currentCleanUrl = stripped.cleanUrl;
+    if (banner) {
+      banner.classList.remove('hidden');
+      if (titleEl) titleEl.textContent = `Tracking Link Detected (${stripped.strippedParams.length} token${stripped.strippedParams.length > 1 ? 's' : ''})`;
+      if (detailEl) detailEl.textContent = `Found: ${stripped.strippedParams.slice(0, 4).join(', ')}${stripped.strippedParams.length > 4 ? '...' : ''}`;
+      if (actionBtn) {
+        actionBtn.textContent = 'Clean URL';
+        actionBtn.disabled = false;
+      }
+    }
+    if (copyBtn) {
+      copyBtn.classList.remove('hidden');
+    }
+  } else {
+    currentCleanUrl = null;
+    if (banner) banner.classList.add('hidden');
+    if (copyBtn) copyBtn.classList.add('hidden');
+  }
+}
+
+function initSanitizer() {
+  const cleanUrlActionBtn = document.getElementById('cleanUrlActionBtn');
+  if (cleanUrlActionBtn) {
+    cleanUrlActionBtn.addEventListener('click', async () => {
+      if (currentTab && currentCleanUrl) {
+        chrome.runtime.sendMessage({
+          action: 'stripTabUrl',
+          tabId: currentTab.id,
+          cleanUrl: currentCleanUrl
+        }, (res) => {
+          const detailEl = document.getElementById('sanitizerDetail');
+          if (detailEl) detailEl.textContent = 'URL stripped and address bar sanitized!';
+          cleanUrlActionBtn.textContent = 'Cleaned!';
+          cleanUrlActionBtn.disabled = true;
+          const copyBtn = document.getElementById('copyCleanUrlBtn');
+          if (copyBtn) copyBtn.classList.add('hidden');
+          setTimeout(() => {
+            const banner = document.getElementById('urlSanitizerBanner');
+            if (banner) banner.classList.add('hidden');
+          }, 1800);
+        });
+      }
+    });
+  }
+
+  const copyBtn = document.getElementById('copyCleanUrlBtn');
+  if (copyBtn) {
+    copyBtn.addEventListener('click', async () => {
+      if (currentCleanUrl) {
+        try {
+          await navigator.clipboard.writeText(currentCleanUrl);
+          const originalText = copyBtn.innerHTML;
+          copyBtn.textContent = 'Copied!';
+          setTimeout(() => {
+            copyBtn.innerHTML = originalText;
+          }, 1500);
+        } catch (e) {
+          console.error('Clipboard copy error:', e);
+        }
+      }
+    });
+  }
+}
+
+/* ==========================================================================
+   FEATURE 3: KEYSTROKE & FORM SNOOPING WATCHDOG
+   ========================================================================== */
+async function scanWatchdog(tab) {
+  let result = {
+    safe: true,
+    hasSensitiveFields: false,
+    sensitiveFieldCount: 0,
+    hasSessionReplay: false,
+    replayTools: [],
+    insecureFormsCount: 0
+  };
+
+  try {
+    const res = await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: () => {
+        if (typeof inspectFormWatchdog === 'function') {
+          return inspectFormWatchdog();
+        }
+        const inputs = Array.from(document.querySelectorAll('input:not([type="hidden"]), textarea'));
+        const sensitive = inputs.filter(i => {
+          const t = (i.type || '').toLowerCase();
+          const n = (i.name || '').toLowerCase() + ' ' + (i.id || '').toLowerCase() + ' ' + (i.autocomplete || '').toLowerCase();
+          return t === 'password' || t === 'email' || t === 'tel' || n.includes('pass') || n.includes('card') || n.includes('cvv') || n.includes('credit') || n.includes('ssn');
+        });
+        const replayLibs = [
+          { name: 'Hotjar', check: () => !!(window.hj || window._hjSettings) },
+          { name: 'FullStory', check: () => !!(window.FS || window._fs_namespace) },
+          { name: 'LogRocket', check: () => !!window.LogRocket },
+          { name: 'Smartlook', check: () => !!window.smartlook },
+          { name: 'Inspectlet', check: () => !!window.__insp },
+          { name: 'Mouseflow', check: () => !!window._mfq },
+          { name: 'CrazyEgg', check: () => !!window.CE2 }
+        ];
+        const detected = [];
+        for (const r of replayLibs) {
+          try { if (r.check()) detected.push(r.name); } catch(e){}
+        }
+        const insecure = Array.from(document.querySelectorAll('form')).filter(f => {
+          const act = (f.getAttribute('action') || '').trim();
+          return act.startsWith('http://');
+        });
+        return {
+          safe: detected.length === 0 && insecure.length === 0,
+          hasSensitiveFields: sensitive.length > 0,
+          sensitiveFieldCount: sensitive.length,
+          hasSessionReplay: detected.length > 0,
+          replayTools: detected,
+          insecureFormsCount: insecure.length
+        };
+      }
+    });
+
+    if (res && res[0] && res[0].result) {
+      result = res[0].result;
+    }
+  } catch (e) {
+    console.warn('Watchdog check restricted:', e.message);
+  }
+
+  renderWatchdog(result);
+}
+
+function renderWatchdog(result) {
+  const card = document.getElementById('watchdogCard');
+  const dot = document.getElementById('watchdogDot');
+  const statusText = document.getElementById('watchdogStatusText');
+  const headline = document.getElementById('watchdogHeadline');
+  const summary = document.getElementById('watchdogSummary');
+  const threatsContainer = document.getElementById('watchdogThreats');
+
+  if (!card) return;
+
+  if (result.hasSessionReplay || result.insecureFormsCount > 0) {
+    card.className = 'watchdog-card warning';
+    if (dot) dot.className = 'watchdog-dot warning';
+    if (statusText) statusText.textContent = 'Caution: Keystroke Telemetry Active';
+    if (headline) headline.textContent = 'Session Replay or Form Interception Detected';
+    if (summary) summary.textContent = 'Third-party scripts on this page have the technical ability to record keystrokes and unsubmitted form inputs.';
+  } else {
+    card.className = 'watchdog-card safe';
+    if (dot) dot.className = 'watchdog-dot';
+    if (statusText) statusText.textContent = 'Protected: No Session Replay Active';
+    if (headline) headline.textContent = 'Input & Form Snooping Protection';
+    if (summary) summary.textContent = 'No unauthorized session replay recorders (such as Hotjar or FullStory) or unencrypted form transmissions were found.';
+  }
+
+  if (threatsContainer) {
+    let itemsHtml = '';
+    if (result.hasSessionReplay) {
+      itemsHtml += `<div class="threat-item warning">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <span>Session Replay Recorders Active: <strong>${result.replayTools.join(', ')}</strong></span>
+      </div>`;
+    } else {
+      itemsHtml += `<div class="threat-item safe">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        <span>Zero session replay keystroke loggers detected</span>
+      </div>`;
+    }
+
+    if (result.insecureFormsCount > 0) {
+      itemsHtml += `<div class="threat-item warning">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="1" x2="12" y2="23"/><line x1="17" y1="5" x2="7" y2="19"/></svg>
+        <span>${result.insecureFormsCount} form(s) submit over unencrypted HTTP</span>
+      </div>`;
+    }
+
+    if (result.hasSensitiveFields) {
+      itemsHtml += `<div class="threat-item">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        <span>${result.sensitiveFieldCount} sensitive input field(s) monitored for snooping</span>
+      </div>`;
+    }
+
+    threatsContainer.innerHTML = itemsHtml;
+  }
+}
+
+/* ==========================================================================
+   FEATURE 8: PRIVACY EXPOSURE DASHBOARD
+   ========================================================================== */
+function initDashboard() {
+  const dashShieldToggle = document.getElementById('dashShieldToggle');
+  if (dashShieldToggle) {
+    dashShieldToggle.addEventListener('change', (e) => {
+      const targetState = e.target.checked;
+      updateShieldUI(targetState);
+      try {
+        if (window.chrome && chrome.runtime && chrome.runtime.sendMessage) {
+          chrome.runtime.sendMessage({ action: 'toggleShield' }, (res) => {
+            const state = getShieldState(res);
+            if (state !== undefined) {
+              updateShieldUI(state);
+            }
+          });
+        }
+      } catch (err) {
+        console.warn('Dashboard shield toggle error:', err);
+      }
+    });
+  }
+
+  const dashStripToggle = document.getElementById('dashStripToggle');
+  if (dashStripToggle) {
+    dashStripToggle.addEventListener('change', (e) => {
+      chrome.runtime.sendMessage({
+        action: 'toggleAutoStrip',
+        enabled: e.target.checked
+      });
+    });
+  }
+
+  // Load auto-strip initial state
+  try {
+    chrome.runtime.sendMessage({ action: 'getShieldStatus' }, (res) => {
+      if (dashStripToggle && res) {
+        dashStripToggle.checked = res.autoStripParams !== false;
+      }
+    });
+  } catch (e) {}
+
+  const exportExposureBtn = document.getElementById('exportExposureBtn');
+  if (exportExposureBtn) {
+    exportExposureBtn.addEventListener('click', () => {
+      chrome.runtime.sendMessage({ action: 'getPrivacyExposure' }, (res) => {
+        const exposure = res || {};
+        const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(exposure, null, 2));
+        const a = document.createElement('a');
+        a.setAttribute('href', dataStr);
+        a.setAttribute('download', `privacylens_exposure_history_${Date.now()}.json`);
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      });
+    });
+  }
+
+  const clearExposureBtn = document.getElementById('clearExposureBtn');
+  if (clearExposureBtn) {
+    clearExposureBtn.addEventListener('click', () => {
+      if (confirm('Reset your entire local Privacy Exposure history? This cannot be undone.')) {
+        chrome.runtime.sendMessage({ action: 'clearPrivacyExposure' }, () => {
+          renderDashboard();
+        });
+      }
+    });
+  }
+}
+
+function renderDashboard() {
+  chrome.runtime.sendMessage({ action: 'getPrivacyExposure' }, (res) => {
+    const exposure = res || {};
+    const blockedEl = document.getElementById('dashBlockedTotal');
+    const trackersEl = document.getElementById('dashTrackersTotal');
+    const paramsEl = document.getElementById('dashParamsStripped');
+    const sitesEl = document.getElementById('dashSitesAudited');
+
+    if (blockedEl) blockedEl.textContent = exposure.totalTrackersBlocked || 0;
+    if (trackersEl) trackersEl.textContent = exposure.totalTrackersDetected || 0;
+    if (paramsEl) paramsEl.textContent = exposure.totalParamsStripped || 0;
+    if (sitesEl) sitesEl.textContent = exposure.sitesAudited ? Object.keys(exposure.sitesAudited).length : 0;
+
+    // Render Giants
+    const listContainer = document.getElementById('dashNetworkList');
+    if (!listContainer) return;
+
+    const encounters = exposure.networkEncounters || {};
+    const entries = Object.entries(encounters).sort((a, b) => b[1] - a[1]);
+
+    if (entries.length === 0) {
+      listContainer.innerHTML = '<div class="dash-empty-state"><p>No tracking history recorded yet. Browse websites with PrivacyLens active to build your privacy footprint map.</p></div>';
+      return;
+    }
+
+    const maxVal = Math.max(...entries.map(e => e[1]), 1);
+    let html = '';
+
+    entries.slice(0, 7).forEach(([networkName, count], idx) => {
+      const pct = Math.round((count / maxVal) * 100);
+      const cleanKey = networkName.toLowerCase().replace(/[^a-z]/g, '');
+      let barClass = 'other';
+      if (cleanKey.includes('google') || cleanKey.includes('doubleclick')) barClass = 'google';
+      else if (cleanKey.includes('meta') || cleanKey.includes('facebook')) barClass = 'meta';
+      else if (cleanKey.includes('amazon')) barClass = 'amazon';
+      else if (cleanKey.includes('microsoft')) barClass = 'microsoft';
+      else if (cleanKey.includes('tiktok')) barClass = 'tiktok';
+
+      html += `
+        <div class="network-ranking-item">
+          <div class="net-row-top">
+            <div class="net-name-group">
+              <span class="net-rank-tag">#${idx + 1}</span>
+              <span class="net-name">${escapeHtml(networkName)}</span>
+            </div>
+            <span class="net-count">${count} encounter${count > 1 ? 's' : ''}</span>
+          </div>
+          <div class="net-bar-bg">
+            <div class="net-bar-fill ${barClass}" style="width: ${Math.max(pct, 6)}%;"></div>
+          </div>
+        </div>
+      `;
+    });
+
+    listContainer.innerHTML = html;
+  });
+}
+

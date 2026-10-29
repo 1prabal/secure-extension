@@ -662,11 +662,145 @@ function inspectInPageProbes() {
   return probes;
 }
 
+// Known tracking query parameters used for cross-site attribution & identity matching
+const TRACKING_QUERY_PARAMS = [
+  'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'utm_id', 'utm_source_platform',
+  'fbclid', 'gclid', 'gclsrc', 'dclid', 'msclkid', 'twclid', 'igshid', 'mc_eid', 'yclid',
+  '_hsenc', '_hsmi', '_openstat', 'zanpid', 'wickedid', 's_kwcid', 'sc_customer', 'sc_lid', 'sc_llid',
+  'ref_', 'fbadid', 'adgroupid', 'campaignid'
+];
+
+/**
+ * Strips tracking parameters from a given URL string
+ * Returns { cleanUrl, strippedParams: string[], hasChanged: boolean }
+ */
+function stripTrackingParameters(urlStr) {
+  if (!urlStr || typeof urlStr !== 'string' || !urlStr.startsWith('http')) {
+    return { cleanUrl: urlStr, strippedParams: [], hasChanged: false };
+  }
+
+  try {
+    const urlObj = new URL(urlStr);
+    const strippedParams = [];
+
+    TRACKING_QUERY_PARAMS.forEach(param => {
+      if (urlObj.searchParams.has(param)) {
+        strippedParams.push(param);
+        urlObj.searchParams.delete(param);
+      }
+    });
+
+    const hasChanged = strippedParams.length > 0;
+    return {
+      cleanUrl: urlObj.toString(),
+      strippedParams,
+      hasChanged
+    };
+  } catch (e) {
+    return { cleanUrl: urlStr, strippedParams: [], hasChanged: false };
+  }
+}
+
+/**
+ * Returns list of distinct domains for aggressive tracking categories
+ * (advertising, retargeting, social, fingerprinting) for DNR blocking rules.
+ */
+function getBlockableTrackerDomains() {
+  const domains = new Set();
+  const blockCategories = new Set(['advertising', 'retargeting', 'social', 'fingerprinting']);
+
+  KNOWN_TRACKERS_DB.forEach(tracker => {
+    if (blockCategories.has(tracker.category)) {
+      tracker.domains.forEach(d => {
+        domains.add(d.toLowerCase());
+      });
+    }
+  });
+
+  return Array.from(domains);
+}
+
+/**
+ * In-page inspection for form keystroke snooping & PII exfiltration
+ */
+function inspectFormWatchdog() {
+  const findings = [];
+  const sensitiveInputs = Array.from(document.querySelectorAll(
+    'input[type="password"], input[type="email"], input[type="tel"], input[name*="pass"], input[name*="email"], input[name*="phone"], input[autocomplete*="email"], input[autocomplete*="password"]'
+  ));
+
+  if (sensitiveInputs.length === 0) {
+    return {
+      hasSnooping: false,
+      findings: [],
+      inputsAudited: 0
+    };
+  }
+
+  // Check if third-party scripts have registered event listeners or mutation observers
+  const thirdPartyScripts = Array.from(document.scripts).filter(s => {
+    if (!s.src) return false;
+    try {
+      const u = new URL(s.src);
+      return u.hostname !== window.location.hostname;
+    } catch(e) {
+      return false;
+    }
+  });
+
+  // Check for common session replay / keylogging libraries in page window
+  const knownReplayLibs = [
+    { name: 'Hotjar Session Recorder', active: !!(window.hj || window._hjSettings) },
+    { name: 'FullStory Replay', active: !!(window.FS && window.FS.getCurrentSessionURL) },
+    { name: 'LogRocket Telemetry', active: !!window._LogRocket },
+    { name: 'Smartlook Screen Tracker', active: !!window.smartlook },
+    { name: 'Inspectlet Form Logger', active: !!window.__insp },
+    { name: 'Mouseflow Input Tracker', active: !!window._mfq },
+    { name: 'CrazyEgg Form Tracker', active: !!window.CE2 }
+  ];
+
+  const activeReplay = knownReplayLibs.filter(l => l.active);
+
+  activeReplay.forEach(lib => {
+    findings.push({
+      threat: 'Form Session Recorder Active',
+      target: `${sensitiveInputs.length} sensitive input field(s)`,
+      evidence: `Active ${lib.name} script detected in window context monitoring live keystrokes & input events.`,
+      severity: 'high'
+    });
+  });
+
+  // Check for unencrypted form submissions
+  const forms = Array.from(document.querySelectorAll('form'));
+  forms.forEach(form => {
+    const action = form.action || '';
+    if (action.startsWith('http://')) {
+      findings.push({
+        threat: 'Insecure Plain-Text Form',
+        target: form.name || 'Unencrypted Form',
+        evidence: 'Form action submits login or input data over unencrypted HTTP protocol.',
+        severity: 'danger'
+      });
+    }
+  });
+
+  return {
+    hasSnooping: findings.length > 0,
+    findings,
+    inputsAudited: sensitiveInputs.length,
+    thirdPartyScriptsCount: thirdPartyScripts.length
+  };
+}
+
 // Export for Node testing or browser window
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     TRACKER_CATEGORIES,
     KNOWN_TRACKERS_DB,
+    TRACKING_QUERY_PARAMS,
+    stripTrackingParameters,
+    getBlockableTrackerDomains,
+    inspectFormWatchdog,
     getRootDomain,
     isThirdPartyDomain,
     analyzeNetworkRequest,

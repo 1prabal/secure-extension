@@ -5,6 +5,7 @@
   "description": "Analyzes third-party advertising, analytics, social pixels, retargeting, fingerprinting, cookies, and permissions.",
   "permissions": [
     "webRequest",
+    "declarativeNetRequest",
     "cookies",
     "activeTab",
     "scripting",
