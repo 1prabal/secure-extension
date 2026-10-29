@@ -60,7 +60,7 @@ PrivacyLens v2.5 upgrades passive auditing into an active **Privacy Protector & 
 4. In the top-left corner, click **"Load unpacked"**.
 5. Select the project folder:
    ```text
-   C:\Users\gamin\Downloads\Secure Extension
+   eg -: C:\Users\Downloads\Secure Extension
    ```
 6. The extension **"PrivacyLens - Website Privacy & Tracker Analyzer"** will be loaded and pinned to your Chrome toolbar.
 
